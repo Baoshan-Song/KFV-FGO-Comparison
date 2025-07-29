@@ -25,4 +25,4 @@ All scripts are in MATLAB. Run the example scripts to reproduce the benchmark re
 
 ## License
 
-[Specify your license here, e.g., MIT, if any]
+The GICI-LIB software package is distributed under GPL v3 license. Users are freedom to modify and distribute the software as they see fit, provided that they adhere to the terms and conditions set forth in the license. This includes the ability to incorporate or use GICI-LIB with other software, whether for non-commercial or commercial purposes. However, any modifications or derivative works must also be distributed under the GPL v3 license, ensuring that the software remains free and accessible to all users.
