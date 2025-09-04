@@ -1,5 +1,4 @@
-# README — KFV ⇄ FGO Demo GUI (App Designer .mlapp)
-
+# README — KFV v.s FGO Comparison toolbox 
 This App is a research/demo tool to accompany our paper “FGO MythBusters: Explaining how Kalman Filter variants achieve the same performance as FGO in navigation applications”. It helps readers reproduce comparisons between Kalman Filter Variants (KFV: EKF/IEKF/REKF/RIEKF) and Factor Graph Optimization (FGO), including Sliding-Window FGO (SW-FGO), under consistent assumptions.
 
 The App provides:
@@ -17,7 +16,7 @@ Note: This is an academic, transparent prototype. It prioritizes clarity and rep
 - MATLAB R2023b or later (R2024b recommended).
 - App Designer (included with MATLAB).
 - Core MATLAB toolboxes:
-  - Statistics and Machine Learning Toolbox (for ECDF, etc.).
+  - Statistics and Machine Learning Toolbox.
   - Optimization-related functions are implemented in code; no special optimization toolbox is required.
 - OS: Windows/macOS/Linux supported by MATLAB.
 
