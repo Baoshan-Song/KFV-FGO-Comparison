@@ -6,7 +6,7 @@ classdef AutoDiffRobustFactor < factor
 
     methods
         function obj = AutoDiffRobustFactor(states, z, error_func, kernel_func)
-            obj@factor(states, z, eye(1)); % Omega 在 kernel 内部处理
+            obj@factor(states, z, eye(1)); % Omega 
             obj.error_func = error_func;
             obj.kernel_func = kernel_func;
         end
@@ -14,10 +14,9 @@ classdef AutoDiffRobustFactor < factor
         function obj = evaluate(obj)
             x = obj.states{1}.value;
 
-            % 整个 error + kernel 组合
             total_func = @(x) obj.kernel_func(obj.error_func(x, obj.z));
 
-            % 自动数值 Jacobian
+            % Auto-Diff Jacobian
             obj.b = total_func(x);
             obj.A = obj.numerical_jacobian(total_func, x);
 

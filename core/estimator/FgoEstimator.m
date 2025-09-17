@@ -128,11 +128,14 @@ classdef FgoEstimator < Estimator
                 debug_info{i}.ls_time = estimator.ls_time;
 
                 % Only for Re-FGO
-                if window_size == 1
-                    estimator = estimator.mar_measurements(i);
+                if obj.config.FGO.imitate_KFV == 1
+                    if window_size == 1
+                        estimator = estimator.mar_measurements(i);
+                        debug_info{i}.margin_meas_time = estimator.margin_meas_time;
+                        debug_info{i}.residual_norm_all = estimator.residual_norm_all;
+                    end
                 end
-                debug_info{i}.margin_meas_time = estimator.margin_meas_time;
-                debug_info{i}.residual_norm_all = estimator.residual_norm_all;
+
             end
 
             % batch FGO

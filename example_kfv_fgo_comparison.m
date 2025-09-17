@@ -38,7 +38,10 @@ result1 = estimator.run();
 
 % FGO template
 fgo_template_config = estimator.convert_KFV_config_to_FGO();
-fgo_template_config.FGO.autoDiff =1;
+% fgo_template_config.FGO.window_size = 2;
+% fgo_template_config.FGO.max_iteration =2;
+fgo_template_config.FGO.autoDiff =0;
+fgo_template_config.FGO.imitate_KFV = 1;
 estimator_fgo = FgoEstimator(fgo_template_config, data);
 result2 = estimator_fgo.run();
 
@@ -80,12 +83,12 @@ disp(['MAE: ', num2str(mae_kfv)]);
 disp(['Max Error: ', num2str(max_error_kfv)]);
 disp(['95% Absolute Error for KFV: ', num2str(abs_error_95_kfv)]);
 
-disp('FGO Estimator Statistics:');
+disp('Re-FGO Estimator Statistics:');
 disp(['MSE: ', num2str(mse_fgo)]);
 disp(['RMSE: ', num2str(rmse_fgo)]);
 disp(['MAE: ', num2str(mae_fgo)]);
 disp(['Max Error: ', num2str(max_error_fgo)]);
-disp(['95% Absolute Error for FGO: ', num2str(abs_error_95_fgo)]);
+disp(['95% Absolute Error for Re-FGO: ', num2str(abs_error_95_fgo)]);
 
 
 % Plot
@@ -97,27 +100,26 @@ hold on;
 plot(result1.X(1,:), result1.X(2,:), 'r.-', 'LineWidth', 1.5, 'MarkerSize', 10);
 hold on;
 plot(result2.X(1,:), result2.X(2,:), 'g.--', 'LineWidth', 1.5, 'MarkerSize', 10);
-legend('Anchor Points','True Trajectory','KFV traj', 'FGO template traj'); % 'Noisy position Measurements',
+legend('Anchor Points','True Trajectory','KFV traj', 'Re-FGO traj'); % 'Noisy position Measurements',
 xlabel('X Position (m)'); ylabel('Y Position (m)');
 title('2D PDR Trajectory and Anchors'); axis equal;
         xlim([50,150]);
         ylim([-25, 85]);
-        
-figure;
-plot(1:data.num_steps, position_error_kfv, 'r-', 'LineWidth', 1.5);
-hold on;
-plot(1:data.num_steps, position_error_fgo, 'g--', 'LineWidth', 1.5);
-legend('KFV Position Error', 'FGO Position Error');
-xlabel('Time Step');
-ylabel('Position Error [m]');
-title('Position Error vs Time');
-grid on;
-
-figure;
-plot(1:data.num_steps, position_error_kfv-position_error_fgo, 'r-', 'LineWidth', 1.5);
-legend('KFV-FGO Position Error');
-xlabel('Time Step');
-ylabel('Position Error [m]');
-title('Position Error vs Time');
-grid on;
+% figure;
+% plot(1:data.num_steps, position_error_kfv, 'r-', 'LineWidth', 1.5);
+% hold on;
+% plot(1:data.num_steps, position_error_fgo, 'g--', 'LineWidth', 1.5);
+% legend('KFV Position Error', 'FGO Position Error');
+% xlabel('Time Step');
+% ylabel('Position Error [m]');
+% title('Position Error vs Time');
+% grid on;
+% 
+% figure;
+% plot(1:data.num_steps, position_error_kfv-position_error_fgo, 'r-', 'LineWidth', 1.5);
+% legend('KFV-FGO Position Error');
+% xlabel('Time Step');
+% ylabel('Position Error [m]');
+% title('Position Error vs Time');
+% grid on;
 

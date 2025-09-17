@@ -12,6 +12,7 @@ config.FGO.autoDiff = 0;
 config.method = 'FGO';
 config.FGO.dt = 1;
 config.FGO.errX0 = [100,-100, 0, 0]';
+% config.FGO.errX0 = [0,0, 0, 0]';
 config.FGO.P0 =  diag([50, 50, 1, 1]);  % initial covariance
 config.FGO.radius=100;
 
@@ -42,7 +43,7 @@ config.FGO.max_iteration = 1;
 config.FGO.thres_iteration = 1E-6;
 config.FGO.robust_kernel = 'huber';
 config.FGO.robust_delta = 2;
-config.FGO.window_size =4;
+config.FGO.window_size =1;
 
 
 

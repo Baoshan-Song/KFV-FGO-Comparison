@@ -60,8 +60,8 @@ debug_info.innovation_covariance = S;  % Innovation covariance
 debug_info.residual = y;  % Residual vector
 
 % Measure memory usage
-mem_info = memory;
-debug_info.memory_usage = mem_info.MemUsedMATLAB;  % Current memory usage in bytes
+% mem_info = memory;
+% debug_info.memory_usage = mem_info.MemUsedMATLAB;  % Current memory usage in bytes
 
 % Optional: Add additional metrics like CPU usage, if desired (requires external tools)
 

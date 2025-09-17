@@ -47,23 +47,6 @@ for iter = 1:max_iter
         % disp('after: '); estimator.states(states_gid(i)).value
     end
 
-    % (Redundant and useless) Update the state value in all active factors in the window --sbs
-    % for i = 1:length(estimator.factors)
-    %     if ~strcmp(estimator.factors{i}.status, "Margin")
-    %         estimator.factors{i} = estimator.factors{i}.evaluate();
-    %         for j = 1: length(estimator.factors{i}.states)
-    %             for k = 1:size(states_gid)
-    %                 if(estimator.factors{i}.states(j).gid == states_gid(k))
-    %
-    %                     estimator.states(states_gid(k)).value
-    %                     estimator.factors{i}.states(j).value
-    %                     estimator.factors{i}.states(j).value = estimator.states(states_gid(k)).value;
-    %                 end
-    %             end
-    %         end
-    %     end
-    % end
-
 
     % Store the information matrix of current estimation
     estimator.latest_information_matrix = J'*J;

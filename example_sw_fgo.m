@@ -42,7 +42,7 @@ fgo_template_config = config;
 fgo_template_config.FGO.autoDiff =0;
 fgo_template_config.FGO.max_iteration =1;
 fgo_template_config.FGO.robust_kernel = 'none';
-fgo_template_config.FGO.window_size =5;
+fgo_template_config.FGO.window_size =1;
 estimator_fgo = FgoEstimator(fgo_template_config, data);
 result2 = estimator_fgo.run();
 
@@ -98,7 +98,7 @@ scatter(data.emitter_positions(1, :), data.emitter_positions(2, :), 100, 'k', 'f
 plot(data.true_positions(1,:)', data.true_positions(2,:)', 'b.-', 'LineWidth', 1.5, 'Marker', 'o','MarkerSize', 4); hold on;
 % plot(result1.X(1,:), result1.X(2,:), 'r.-', 'LineWidth', 1.5, 'MarkerSize', 10);
 plot(result2.X(1,:), result2.X(2,:), 'g.--', 'LineWidth', 1.5, 'Marker', '^', 'MarkerSize', 3);
-legend('Anchor Points','True Trajectory', 'FGO template traj'); % 'Noisy position Measurements',
+legend('Anchor Points','True Trajectory', 'SW-FGO template traj'); % 'Noisy position Measurements',
 xlabel('X Position (m)'); ylabel('Y Position (m)');
 title('2D PDR Trajectory and Anchors'); axis equal;
         xlim([50,150]);

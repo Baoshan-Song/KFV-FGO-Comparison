@@ -124,6 +124,8 @@ switch lower(loss_type)
         else
             w = 0;
         end
+    case 'none'
+        w =1;
     otherwise
         error('Unknown loss type: %s', loss_type);
 end

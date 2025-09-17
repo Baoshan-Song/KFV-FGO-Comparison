@@ -5,10 +5,11 @@ config.data.path = 'circle_cv_gmm_L4.mat';
 
 config.method = 'KFV';
 %% KFV configuration
-config.KFV.mode = 'riEKF';  % EKF, iEKF, rEKF, riEKF
+config.KFV.mode = 'EKF';  % EKF, iEKF, rEKF, riEKF
 % predict
 config.KFV.dt = 1;
 config.KFV.errX0 = [100,-100, 0, 0]';
+% config.KFV.errX0 = [0,0, 0, 0]';
 config.KFV.P0 = diag([50, 50, 1, 1]);  % initial covariance
 
 config.KFV.f = @(x, dt, omega) [
@@ -33,7 +34,7 @@ config.KFV.H = @(x, ep) [(x(1)-ep(1))/config.KFV.h(x,ep), (x(2)-ep(2))/config.KF
 config.KFV.R = 0.1^2; % m^2
 
 % variant property
-config.KFV.max_iteration =100;
+config.KFV.max_iteration =2;
 config.KFV.thres_iteration = 1E-6;
 config.KFV.robust_kernel = 'huber';
 config.KFV.robust_delta = 2;

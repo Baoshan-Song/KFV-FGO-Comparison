@@ -114,7 +114,7 @@ classdef KfvEstimator < Estimator
                     results.X = x_est_riekf;
                     results.debug_info = debug_info;
                 otherwise
-                    disp('Only support EKF/iEKF/swEKF/rEKF yet!');
+                    disp('Only support EKF/iEKF/rEKF/riEKF yet!');
             end
 
         end
@@ -145,7 +145,7 @@ classdef KfvEstimator < Estimator
 
             % whether using FGO template
             fgo_config.FGO.imitate_KFV = 1;
-
+            
             switch obj.config.KFV.mode
                 case 'EKF'
                     fgo_config.FGO.max_iteration  =  1;

@@ -146,7 +146,6 @@ end
 % Reassign local IDs for remaining states
 lid_counter = 1; % New local_id
 for i = 1:length(estimator.states)
-    % if strcmp(estimator.states(i).status, "forward") % (TODO) Test for RTSS
     if  ~ismember(estimator.states(i).gid, states_to_remove_gids)
         if  ~strcmp(estimator.states(i).status, "Margin")
             estimator.states(i).lid = lid_counter;
