@@ -185,7 +185,7 @@ This makes it easy to share exact configurations used for figures.
 
 If you use this App in academic work, please cite our paper:
 
-- Baoshan Song, Ruijie Xu, Li-Ta Hsu, “FGO MythBusters: Explaining how Kalman Filter variants achieve the same performance as FGO in navigation applications,” 2025.
+- Song, B., Xu, R., & Hsu, L. T. (2025). FGO MythBusters: Explaining how Kalman Filter variants achieve the same performance as FGO in navigation applications. arXiv preprint arXiv:2511.00306.
 
 ---
 
