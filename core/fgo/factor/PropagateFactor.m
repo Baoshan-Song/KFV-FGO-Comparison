@@ -31,7 +31,8 @@ classdef PropagateFactor < factor
              predictde_new_state_value = obj.config.FGO.f( cur_state.value , ...
                  obj.config.FGO.dt, obj.config.FGO.omega) ; % test constant angular velocity --sbs
 
-            obj.b = - (new_state.value - predictde_new_state_value) ;
+            % updated 20260506 --sbs
+            obj.b = new_state.value - predictde_new_state_value;
 
             obj.Omega = inv(obj.config.FGO.Q);
             
