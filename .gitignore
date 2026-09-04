@@ -2,12 +2,9 @@
 /video/
 /tutorial_output/
 
-# Local tutorial/development material, excluded from this code-only release.
+# Local internal documentation and tests, excluded from this release.
 /docs/
 /tests/
-/tutorial_hands_on.m
-/prepare_tutorial_environment.m
-/compute_comparison_metrics.m
 
 # Audio/video exports outside the production folder.
 *.mp4
