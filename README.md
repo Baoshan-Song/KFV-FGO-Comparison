@@ -1,13 +1,12 @@
 
-# README -- KFV v.s FGO Comparison Toolbox
+# KFV v.s FGO Comparison Toolbox
 
-[![YouTube Video Demonstration][(https://img.youtube.com/vi/_W2NP7gwf7s/maxresdefault.jpg)](https://www.youtube.com/watch?v=_W2NP7gwf7s)](https://img.youtube.com/vi/_W2NP7gwf7s/maxresdefault.jpg)
+[![YouTube Video Demonstration](https://img.youtube.com/vi/_W2NP7gwf7s/maxresdefault.jpg)](https://www.youtube.com/watch?v=_W2NP7gwf7s)
 
 An interactive MATLAB research and demonstration toolbox accompanying our paper:
 *"Degeneration of sliding-window factor graph optimization into iterated extended Kalman filtering"*
 Baoshan Song, R. Xu, Zhi Zhan, et al.
 [npj Wireless Technology](https://www.nature.com/articles/s44459-026-00069-4), 2, 58 (2026)
-
 
 ---
 
