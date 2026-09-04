@@ -1,0 +1,31 @@
+# Local video production: scripts, recordings, slides, narration and exports.
+/video/
+/tutorial_output/
+
+# Local internal documentation and tests, excluded from this release.
+/docs/
+/tests/
+
+# Audio/video exports outside the production folder.
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+
+# Local caches, credentials and editor/runtime temporary files.
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.asv
+*.m~
+/MathWorks/
+.DS_Store
+Thumbs.db
