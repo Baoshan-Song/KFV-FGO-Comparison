@@ -1,4 +1,4 @@
-# KFV v.s FGO Comparison Toolbox
+## KFV v.s FGO Comparison Toolbox
 
 [![YouTube Video Demonstration](https://img.youtube.com/vi/_W2NP7gwf7s/maxresdefault.jpg)](https://www.youtube.com/watch?v=_W2NP7gwf7s)
 
