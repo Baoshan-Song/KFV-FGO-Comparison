@@ -6,6 +6,7 @@ An interactive MATLAB research and demonstration toolbox accompanying our paper:
 *"Degeneration of sliding-window factor graph optimization into iterated extended Kalman filtering"*
 Baoshan Song, R. Xu, Zhi Zhan, et al.
 [npj Wireless Technology](https://www.nature.com/articles/s44459-026-00069-4), 2, 58 (2026)
+
 ---
 
 ## 📅 Recent Updates
