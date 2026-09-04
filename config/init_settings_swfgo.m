@@ -35,7 +35,7 @@ config.FGO.F = @(x, dt, omega) [
 config.FGO.Q = diag([1e-4, 1e-4, 1e-4, 1e-4]);   % propagation noise
 % measurement 
 config.FGO.h =  @(x, ep) sqrt((x(1)-ep(1)).^2 + (x(2)-ep(2)).^2);
-config.FGO.H = @(x, ep) [(x(1)-ep(1))/config.KFV.h(x,ep), (x(2)-ep(2))/config.KFV.h(x,ep), 0, 0];
+config.FGO.H = @(x, ep) [(x(1)-ep(1))/config.FGO.h(x,ep), (x(2)-ep(2))/config.FGO.h(x,ep), 0, 0];
 
 config.FGO.R = 0.1^2;               % m^2
 % variant property
