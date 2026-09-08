@@ -13,7 +13,7 @@ classdef position_factor < factor
             state = obj.states(1);
 
             % Position factor
-            obj.A = -eye(4);
+            obj.A = -eye(length(state.value));
             obj.b = obj.z -  state.value;
 
             

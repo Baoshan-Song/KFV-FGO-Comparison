@@ -27,6 +27,9 @@ Designed for researchers, educators, and algorithmic developers, this toolbox br
 * MATLAB R2023b or later (R2024b recommended).
 * App Designer (included with standard MATLAB desktop installations).
 * Core Toolboxes: Statistics and Machine Learning Toolbox. *(Custom optimization algorithms are implemented natively; no external optimization toolbox required).*
+* Real GNSS/IMU processing uses the included MatRTKLIB submodule. Clone with
+  `--recurse-submodules`, or run `git submodule update --init --recursive`
+  after cloning. No quaternion/robotics toolbox is required.
 
 ---
 
@@ -42,7 +45,10 @@ Designed for researchers, educators, and algorithmic developers, this toolbox br
 
 ## 5. Installation & Path Setup
 
-1. Clone or download the project to a local folder.
+1. Clone the project and its submodules:
+   ```bash
+   git clone --recurse-submodules https://github.com/Baoshan-Song/KFV-FGO-Comparison.git
+   ```
 2. Open MATLAB and ensure all subfolders are added to your path:
    ```matlab
    addpath(genpath('path/to/KFV-FGO-Comparison'));
@@ -87,9 +93,63 @@ A minimal dataset (MAT-file) should include:
 * For FGO demos: `toa_measurements` (\$M \\times T\$) and `emitter_positions` (\$2 \\times M\$).
 * Use `data/circle_cv_gmm_L1.mat` as a default starting reference.
 
+### Real GNSS/IMU data
+
+The real-data path uses a 10-state vector
+`[ECEF position(3), ECEF velocity(3), accelerometer bias(3), receiver clock]`.
+The original simulations keep their 4-state vector `[x, y, vx, vy]`. Select
+the model explicitly with `config.state_dim = 4` or `config.state_dim = 10`;
+the estimator validates this value against the initial state.
+
+Put the following files in one directory:
+
+* `xsens_imu.csv`
+* `f9p_navi.obs`
+* `brdm.rnx`
+
+Then run both the selected KFV and its equivalent recursive FGO:
+
+```matlab
+% First edit config/init_settings_gnss_ins.m to set config.data.path and
+% config.KFV.mode, then run:
+example_gnss_ins;
+```
+
+`example_gnss_ins.m` is a script, so `kfv_result` and `fgo_result` remain in
+the MATLAB workspace. `init_settings_gnss_ins.m` is also a script, matching
+the existing simulation workflow. It uses `data/gnss_ins/deep` and `EKF` by
+default; `EKF`, `iEKF`, `rEKF`, and `riEKF` are supported.
+
+Satellite orbit and clock states are computed once from the RINEX navigation
+data. Receiver-dependent quantities are not cached: geometric range, line of
+sight, elevation, ionospheric and tropospheric corrections, pseudorange
+residuals, and observation covariance are recomputed at every KFV/FGO
+linearization point. This is the full mathematical observation path rather
+than the source repository's prelinearized Quick mode.
+
+`GnssImuDataset.getMeasurement(epoch)` therefore returns only the raw
+observation, cached satellite state/clock, and TGD for that epoch. The current
+receiver state is passed separately to `GnssObservationModel`, which keeps the
+data layer independent of estimator iterations and RTKLIB handle mutations.
+
+IMU CSV parsing, GNSS time alignment, and the simplified propagation convention
+follow the MIT-licensed
+[KF-GNSS-INS](https://github.com/ZzPolyU/KF-GNSS-INS) implementation. In
+particular, propagation uses the first valid IMU sample in each GNSS interval,
+the supplied attitude quaternion, and the same first-order Euler update.
+
+## 9. Tests
+
+Run the MATLAB regression suite from the repository root:
+
+```matlab
+results = runtests('tests');
+assertSuccess(results);
+```
+
 ---
 
-## 9. Citation
+## 10. Citation
 
 If you find this repository helpful in your academic research, please cite our paper:
 
@@ -107,6 +167,6 @@ If you find this repository helpful in your academic research, please cite our p
 
 ---
 
-## 10. License
+## 11. License
 
 The software package is distributed under GPL v3 license. Users are freedom to modify and distribute the software as they see fit, provided that they adhere to the terms and conditions set forth in the license. This includes the ability to incorporate or use the comparison codes with other software, whether for non-commercial or commercial purposes. However, any modifications or derivative works must also be distributed under the GPL v3 license, ensuring that the software remains free and accessible to all users.
