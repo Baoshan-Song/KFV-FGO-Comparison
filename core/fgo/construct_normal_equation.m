@@ -21,14 +21,12 @@ end
 
 %% Construct total J and r
 n_x = size(estimator.states(1).value, 1); % row size of state vector
-n_b = size(estimator.factors{1}.b, 1); % row size of residual vector
-
-% m_x = size(estimator.states, 2) ; % number of state node 
-m_b = size(active_factors,2); % number of residual factor node
-
-% (TODO) change the size of J and r
-J = zeros(m_b*n_b, m_x*n_x);
-r = zeros(m_b*n_b,1);
+row_count = 0;
+for i = 1:length(active_factors)
+    row_count = row_count + size(active_factors{i}.b, 1);
+end
+J = zeros(row_count, m_x*n_x);
+r = zeros(row_count, 1);
 
 cur_row = 0;
 for i = 1:length(active_factors)

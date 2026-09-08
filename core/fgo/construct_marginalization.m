@@ -24,11 +24,9 @@ for i = 1:length(estimator.states)
     end
 end
 
-% Get the number of state variables (n_x) and residuals (n_b)
+% Get the number of state variables (n_x)
 n_x = size(estimator.states(1).value, 1); 
-n_b = size(estimator.factors{1}.b, 1);  
 m_x = 0; % Non-marginalized states
-m_b = size(active_factors,2); % Number of residual factors
 
 % Recompute non-marginalized states
 for i = 1:length(estimator.states)
@@ -41,8 +39,12 @@ end
 
 %% Get the Jacobian and residual from latest normal equation
 % (TODO) Shrink the J and r for less space and higher efficiency
-J = zeros(m_b*n_b, m_x*n_x);
-r = zeros(m_b*n_b,1);
+row_count = 0;
+for i = 1:length(active_factors)
+    row_count = row_count + size(active_factors{i}.b, 1);
+end
+J = zeros(row_count, m_x*n_x);
+r = zeros(row_count, 1);
 row = 1; col = 1;
 for i = 1:length(active_factors)
     factor = active_factors{i};

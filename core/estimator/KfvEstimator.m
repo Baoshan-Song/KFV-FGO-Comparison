@@ -9,17 +9,31 @@ classdef KfvEstimator < Estimator
             % heuristic, i.e. there are not closed-form solution for them.
             % Hence, we divide them into different realization here.
             
-            % Steps count 
+            is_model_dataset = isobject(obj.data) && ...
+                ismethod(obj.data, 'getPropagationInput') && ...
+                ismethod(obj.data, 'getMeasurement');
+
+            % Steps count and initial state
             N = obj.data.num_steps;
-            z = obj.data.toa_measurements;
-            emitter = obj.data.emitter_positions;
+            if is_model_dataset
+                x0 = obj.data.initial_state + obj.config.KFV.errX0;
+                z = [];
+                emitter = [];
+            else
+                z = obj.data.toa_measurements;
+                emitter = obj.data.emitter_positions;
+                x0 = [obj.data.true_positions(:,1); obj.data.true_velocities(:,1)] + ...
+                    obj.config.KFV.errX0;
+            end
 
             % Input parameters
             mode = obj.config.KFV.mode;
-            % Initial state
-            % x0 = obj.config.KFV.X0; % input from config
-            x0 = [obj.data.true_positions(:,1); obj.data.true_velocities(:,1)]+ obj.config.KFV.errX0; % test different initial point --sbs
             state_size = size(x0, 1);
+            if isfield(obj.config, 'state_dim') && state_size ~= obj.config.state_dim
+                error('KFV:StateDimensionMismatch', ...
+                    'Initial state has %d elements but config.state_dim is %d.', ...
+                    state_size, obj.config.state_dim);
+            end
             dt  = obj.config.KFV.dt;
 
             P0 = obj.config.KFV.P0;
@@ -34,6 +48,10 @@ classdef KfvEstimator < Estimator
             h = obj.config.KFV.h;
             H = obj.config.KFV.H;
             R = obj.config.KFV.R;
+            observation_function = [];
+            if isfield(obj.config.KFV, 'observation_function')
+                observation_function = obj.config.KFV.observation_function;
+            end
 
             % KF variant parameters
             max_iter = obj.config.KFV.max_iteration;
@@ -59,12 +77,27 @@ classdef KfvEstimator < Estimator
             debug_info = [];
 
             for k=2:N
+                if is_model_dataset
+                    dt_k = obj.data.getTimeStep(k);
+                    process_input = obj.data.getPropagationInput(k);
+                    measurement_k = obj.data.getMeasurement(k);
+                    emitter_k = [];
+                    R_k = [];
+                else
+                    dt_k = dt;
+                    process_input = omega;
+                    measurement_k = z(:, k);
+                    emitter_k = emitter;
+                    R_k = R;
+                end
+
                 % 
                 % tic;
                 if strcmp(mode, 'EKF')
                     % === EKF ===
                     [x_upd_EKF, P_upd_EKF, x_pred_EKF, P_pred_EKF, debug_info_EKF] = ...
-                        ekf(x_est_EKF(:,k-1), P_EKF, dt, omega, f, F, Q, z(:, k), emitter, h, H, R);
+                        ekf(x_est_EKF(:,k-1), P_EKF, dt_k, process_input, f, F, Q, ...
+                        measurement_k, emitter_k, h, H, R_k, observation_function);
                     x_est_EKF(:,k) = x_upd_EKF; P_EKF = P_upd_EKF;
                 
                 % elapsed = toc;
@@ -74,7 +107,8 @@ classdef KfvEstimator < Estimator
                 elseif strcmp(mode, 'iEKF')
                     % === iEKF ===
                     [x_upd_iEKF, P_upd_iEKF, x_pred_iEKF, P_pred_iEKF, debug_info_iEKF] = ...
-                        miekf(x_est_iEKF(:,k-1), P_iEKF, dt, omega, f, F, Q, z(:, k), emitter, h, H, R, max_iter,thres_iter);
+                        miekf(x_est_iEKF(:,k-1), P_iEKF, dt_k, process_input, f, F, Q, ...
+                        measurement_k, emitter_k, h, H, R_k, max_iter, thres_iter, observation_function);
                     x_est_iEKF(:,k) = x_upd_iEKF; P_iEKF = P_upd_iEKF;
 
                     debug_info{k} = debug_info_iEKF;
@@ -82,7 +116,8 @@ classdef KfvEstimator < Estimator
                 elseif strcmp(mode, 'rEKF')
                     % === Robust EKF ===
                     [x_upd_Robust, P_upd_Robust, x_pred_Robust, P_pred_Robust, debug_info_rEKF] = ...
-                        rekf(x_est_Robust(:,k-1), P_Robust, dt, omega, f, F, Q, z(:, k), emitter, h, H, R, robust_kernel, robust_delta);
+                        rekf(x_est_Robust(:,k-1), P_Robust, dt_k, process_input, f, F, Q, ...
+                        measurement_k, emitter_k, h, H, R_k, robust_kernel, robust_delta, observation_function);
                     x_est_Robust(:,k) = x_upd_Robust; P_Robust = P_upd_Robust;
 
                     debug_info{k} = debug_info_rEKF;
@@ -90,7 +125,9 @@ classdef KfvEstimator < Estimator
                 elseif strcmp(mode, 'riEKF')
                     % === riekf ===
                     [x_upd_riEKF, P_upd_riEKF, x_pred_riEKF, P_pred_riEKF, debug_info_riEKF] = ...
-                        rmiekf(x_est_riekf(:,k-1), P_riekf, dt, omega, f, F, Q, z(:, k), emitter, h, H, R, max_iter,thres_iter,robust_kernel, robust_delta);
+                        rmiekf(x_est_riekf(:,k-1), P_riekf, dt_k, process_input, f, F, Q, ...
+                        measurement_k, emitter_k, h, H, R_k, max_iter, thres_iter, ...
+                        robust_kernel, robust_delta, observation_function);
                     x_est_riekf(:,k) = x_upd_riEKF; P_riekf = P_upd_riEKF;
 
                     debug_info{k} = debug_info_riEKF;
@@ -136,6 +173,12 @@ classdef KfvEstimator < Estimator
             fgo_config.FGO.H = obj.config.KFV.H; 
 
             fgo_config.FGO.R =  obj.config.KFV.R; 
+            if isfield(obj.config.KFV, 'observation_function')
+                fgo_config.FGO.observation_function = obj.config.KFV.observation_function;
+            end
+            if isfield(obj.config, 'state_dim')
+                fgo_config.state_dim = obj.config.state_dim;
+            end
             % variant property
             fgo_config.FGO.max_iteration  =  obj.config.KFV.max_iteration ;
             fgo_config.FGO.thres_iteration = obj.config.KFV.thres_iteration ;

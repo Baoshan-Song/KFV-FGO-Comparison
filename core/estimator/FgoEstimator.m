@@ -6,14 +6,29 @@ classdef FgoEstimator < Estimator
     methods
         function results = run(obj)
 
+            is_model_dataset = isobject(obj.data) && ...
+                ismethod(obj.data, 'getPropagationInput') && ...
+                ismethod(obj.data, 'getMeasurement');
+
             N = obj.data.num_steps;
-            range_meas = obj.data.toa_measurements;
-            emitter = obj.data.emitter_positions;
+            if is_model_dataset
+                range_meas = [];
+                emitter = [];
+                x0 = obj.data.initial_state + obj.config.FGO.errX0;
+            else
+                range_meas = obj.data.toa_measurements;
+                emitter = obj.data.emitter_positions;
+                x0 = [obj.data.true_positions(:,1); obj.data.true_velocities(:,1)] + ...
+                    obj.config.FGO.errX0;
+            end
 
             % Input parameters
-            % Initial state
-            x0 = [obj.data.true_positions(:,1); obj.data.true_velocities(:,1)] + obj.config.FGO.errX0; % input from data
-            state_size = size(x0);
+            state_size = length(x0);
+            if isfield(obj.config, 'state_dim') && state_size ~= obj.config.state_dim
+                error('FGO:StateDimensionMismatch', ...
+                    'Initial state has %d elements but config.state_dim is %d.', ...
+                    state_size, obj.config.state_dim);
+            end
             dt  = obj.config.FGO.dt;
             P0 = obj.config.FGO.P0;
 
@@ -55,6 +70,14 @@ classdef FgoEstimator < Estimator
                 tic;
                 current_state = estimator.states(i-1);
 
+                if is_model_dataset
+                    dt_i = obj.data.getTimeStep(i);
+                    propagation_input = obj.data.getPropagationInput(i);
+                else
+                    dt_i = dt;
+                    propagation_input = obj.config.FGO.omega;
+                end
+
                 % new state from propagation model
                 % new_state_value = f( current_state.value , dt) ; % for constant velocity
                 % new_state_value = f( current_state.value , obj.config.FGO.radius, dt) ;
@@ -66,7 +89,7 @@ classdef FgoEstimator < Estimator
                 % new_state = state(i, 2, new_state_value);  % simulate recursive KF
 
                 % initialize local id as current win_size+1
-                new_state_value = f( current_state.value , dt, obj.config.FGO.omega) ; % for constant angular velocity
+                new_state_value = f(current_state.value, dt_i, propagation_input);
                 new_state = state(i, estimator.win_size+1, new_state_value);  % simulate recursive KF
 
 
@@ -76,7 +99,12 @@ classdef FgoEstimator < Estimator
                 % prop_factor = pdr_factor([current_state, new_state], z, Omega);
 
                 % propagation factor using given functions
-                prop_factor = PropagateFactor([current_state, new_state], obj.config);
+                if is_model_dataset
+                    prop_factor = ImuPropagateFactor( ...
+                        [current_state, new_state], propagation_input, dt_i, obj.config);
+                else
+                    prop_factor = PropagateFactor([current_state, new_state], obj.config);
+                end
                 estimator = estimator.addState(new_state);
                 estimator = estimator.addFactor(prop_factor);
 
@@ -111,16 +139,23 @@ classdef FgoEstimator < Estimator
 
                 %% measurement update
                 % measurement factor
-                for j = 1: size(emitter, 2)
-                    raw_meas.range = range_meas(j, i);
-                    raw_meas.emitter = emitter(:, j);
-                    raw_meas.loss_type = obj.config.FGO.robust_kernel;
-                    raw_meas.loss_delta = obj.config.FGO.robust_delta;
-                    raw_meas.autoDiff = obj.config.FGO.autoDiff;
+                if is_model_dataset
+                    measurement = obj.data.getMeasurement(i);
+                    gnss_factor = GnssPseudorangeFactor( ...
+                        estimator.states(i), measurement, obj.config);
+                    estimator = estimator.addFactor(gnss_factor);
+                else
+                    for j = 1: size(emitter, 2)
+                        raw_meas.range = range_meas(j, i);
+                        raw_meas.emitter = emitter(:, j);
+                        raw_meas.loss_type = obj.config.FGO.robust_kernel;
+                        raw_meas.loss_delta = obj.config.FGO.robust_delta;
+                        raw_meas.autoDiff = obj.config.FGO.autoDiff;
 
-                    Omega = inv(R);
-                    range_factor = RangeFactor([estimator.states(i)], raw_meas, Omega);
-                    estimator = estimator.addFactor(range_factor);
+                        Omega = inv(R);
+                        range_factor = RangeFactor([estimator.states(i)], raw_meas, Omega);
+                        estimator = estimator.addFactor(range_factor);
+                    end
                 end
 
                 % estimate with Gauss-Newton method
