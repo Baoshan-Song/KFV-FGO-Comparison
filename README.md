@@ -101,24 +101,25 @@ The original simulations keep their 4-state vector `[x, y, vx, vy]`. Select
 the model explicitly with `config.state_dim = 4` or `config.state_dim = 10`;
 the estimator validates this value against the initial state.
 
-Put the following files in one directory:
+The included `data/urban_nav_deep` dataset contains:
 
 * `xsens_imu.csv`
 * `f9p_navi.obs`
 * `brdm.rnx`
+* `gt.txt` (reference trajectory; not consumed by the estimator yet)
 
-Then run both the selected KFV and its equivalent recursive FGO:
+Run both the selected KFV and its equivalent recursive FGO directly:
 
 ```matlab
-% First edit config/init_settings_gnss_ins.m to set config.data.path and
-% config.KFV.mode, then run:
 example_gnss_ins;
 ```
 
 `example_gnss_ins.m` is a script, so `kfv_result` and `fgo_result` remain in
 the MATLAB workspace. `init_settings_gnss_ins.m` is also a script, matching
-the existing simulation workflow. It uses `data/gnss_ins/deep` and `EKF` by
-default; `EKF`, `iEKF`, `rEKF`, and `riEKF` are supported.
+the existing simulation workflow. It uses `data/urban_nav_deep` and `EKF` by
+default; `EKF`, `iEKF`, `rEKF`, and `riEKF` are supported. Edit
+`config.data.path` to use another dataset with the same three estimator input
+files.
 
 Satellite orbit and clock states are computed once from the RINEX navigation
 data. Receiver-dependent quantities are not cached: geometric range, line of

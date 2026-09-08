@@ -2,7 +2,7 @@
 % Input data directory. Change this path when the real data is stored
 % outside the repository.
 config_directory = fileparts(mfilename('fullpath'));
-config.data.path = fullfile(config_directory, '..', 'data', 'gnss_ins', 'deep');
+config.data.path = fullfile(fileparts(config_directory), 'data', 'urban_nav_deep');
 config.data.mode = 'real';
 config.data.type = 'gnss_imu';
 config.data.imu_file = fullfile(config.data.path, 'xsens_imu.csv');

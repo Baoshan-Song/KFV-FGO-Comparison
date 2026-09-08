@@ -40,6 +40,8 @@ run(fullfile('config', 'init_settings_gnss_ins.m'));
 
 verifyEqual(test_case, config.data.mode, 'real');
 verifyEqual(test_case, config.data.type, 'gnss_imu');
+verifyEqual(test_case, config.data.path, ...
+    fullfile(test_case.TestData.repository_root, 'data', 'urban_nav_deep'));
 verifyEqual(test_case, config.state_dim, 10);
 verifySize(test_case, config.KFV.P0, [10, 10]);
 verifySize(test_case, config.KFV.Q, [10, 10]);
