@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+*.png
+data/circle_cv_gmm_custom.mat
+.DS_Store
