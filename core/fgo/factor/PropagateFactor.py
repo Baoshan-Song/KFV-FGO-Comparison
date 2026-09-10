@@ -12,7 +12,7 @@ class PropagateFactor(Factor):
 		cfg = self.config
 		jacobian = motion_jacobian(self.states[0].value, cfg.dt, cfg.omega)
 		residual = self.states[1].value - motion(self.states[0].value, cfg.dt, cfg.omega)
-		self.A, self.b = whiten(np.hstack((-jacobian, np.eye(4))), residual, np.linalg.inv(cfg.q))
+		self.A, self.b = whiten(np.hstack((jacobian, -np.eye(4))), residual, np.linalg.inv(cfg.q))
 		return self
 
 __all__ = ["PropagateFactor"]

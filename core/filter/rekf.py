@@ -22,13 +22,16 @@ def rekf(x_prev, p_prev, dt, omega, f, F, Q, measurements, emitters, h, H,
 	weighted_jacobian = root[:, None] * jacobian
 	weighted_residual = root * residual
 	covariance = np.eye(len(measurements)) * r_base
-	innovation = weighted_jacobian @ p_pred @ weighted_jacobian.T + covariance
-	gain = np.linalg.solve(innovation.T, (p_pred @ weighted_jacobian.T).T).T
+	raw_innovation = jacobian @ p_pred @ jacobian.T + covariance
+	# innovation = weighted_jacobian @ p_pred @ weighted_jacobian.T + covariance
+	# gain = np.linalg.solve(innovation.T, (p_pred @ weighted_jacobian.T).T).T
+	robust_innovation = weighted_jacobian @ p_pred @ weighted_jacobian.T + covariance
+	gain = np.linalg.solve(robust_innovation, weighted_jacobian @ p_pred).T
 	x_est = x_pred + gain @ weighted_residual
 	p_est = (np.eye(len(x_pred)) - gain @ weighted_jacobian) @ p_pred
 	return x_est, p_est, x_pred, p_pred, {
 		"jacobian_all": jacobian, "residual_norm_all": residual ** 2,
-		"kalman_gain": gain, "innovation_covariance": innovation,
+		"kalman_gain": gain, "innovation_covariance": raw_innovation,
 		"residual": residual,
 	}
 
