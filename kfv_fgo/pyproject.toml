@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kfv-fgo-comparison"
+version = "0.4.0"
+description = "Self-contained KFV/FGO simulation and real GNSS/INS workspace"
+readme = "README.md"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24", "scipy>=1.10"]
+
+[project.optional-dependencies]
+real = ["pyrtklib==0.2.7", "matplotlib>=3.7"]
+plots = ["matplotlib>=3.7"]
+test = ["pytest>=8", "build"]
+
+[project.scripts]
+kfv-fgo-compare-results = "kfv_fgo.examples.compare_matlab_results:main"
+
+[tool.setuptools]
+package-dir = {kfv_fgo = "."}
+packages = ["kfv_fgo", "kfv_fgo.core", "kfv_fgo.model", "kfv_fgo.config", "kfv_fgo.data", "kfv_fgo.examples"]
+
+[tool.setuptools.package-data]
+kfv_fgo = ["config/*.json", "data/*.mat", "data/urban_nav_deep/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+cache_dir = ".pytest_cache"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

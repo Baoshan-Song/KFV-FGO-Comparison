@@ -1,0 +1,3285 @@
+{
+  "simulation": {
+    "file": "matlab_simulation.mat",
+    "sha256": "c938e5b5c9f896e561139a5705a183b2e092eb15d8b074040174198b86f766ab",
+    "created_utc": "2026-09-09T15:44:36.653122+00:00",
+    "matlab_version": "26.1.0.3346908 (R2026a) Update 5",
+    "historical_source_root": "D:\\KFV-FGO\\KFV-FGO-Comparison-github",
+    "data_directory": "data",
+    "data_sha256": {
+      "circle_cv_gmm_L4.mat": "72afb0a6b33ca93711f88a99090fd6cf78a01755e118323c9710ff796a335ba1"
+    },
+    "matlab_source_sha256": {
+      "config/init_settings_kfv_fgo_comparison.m": "0fbc6e421d682edca370abc0efbd7a4955f574ad8148344b8b9a6c8aeda0739b",
+      "config/init_settings_swfgo.m": "4efb8d714c423adb2245bc83824dc77dcece6d1cdff8ecc9db21e4ea8d1361ed",
+      "core/estimator/Estimator.m": "d8f52f91d9a349241292faf250873645549db42f21edd479b2c0465ed9a82fa1",
+      "core/estimator/FgoEstimator.m": "defc7e50048bd43ba37a87d9175de7d190fc5f7dbb56cc2ccb1b40958c8f8521",
+      "core/estimator/KfvEstimator.m": "1a7f8d2bc3e460efb6ec540d56627ac0741bfb69e87667f55b02e7f7d479cf56",
+      "core/fgo/construct_marginalization.m": "8c0a1eaa38cd9f9fe3a559a1e11c0b6096dacaab4e5416a807d242728a46179a",
+      "core/fgo/construct_meas_prior_factor.m": "86198bf6e620321db67336b751d731273dea52329f1a8bec391df61a023acb25",
+      "core/fgo/construct_normal_equation.m": "eab7f74523bb1dcd5ea40347bf4fd132ef2c49d399806ebe4c2368fb2194e0ea",
+      "core/fgo/estimate_fgo.m": "623e70ea8db5a98cf3d7220234d0adc0ed94216daf54c2d4a83ce948c67e00c7",
+      "core/fgo/factor/AutoDiffFactor.m": "d71e35dbc00d51f813474f13a612e83734651dd4b9b97bb3e4f9ca69aea91a10",
+      "core/fgo/factor/AutoDiffRobustFactor.m": "6ed7887b12221cd5cf8a2251a697540d1cfdd75d1fdc728e3157fa53ad4679b5",
+      "core/fgo/factor/factor.m": "5fe5f521567d50cc08c13571aca4fda133049dbbef57f6c229d0a733f8b6dcd1",
+      "core/fgo/factor/margin_factor.m": "5717214b267df33ced8bc0f38927d20cddb6bfc8ce3a576da232859f83921725",
+      "core/fgo/factor/pdr_factor.m": "4e3dfe1bffc7505454af9988f4110862454a6fd07f53db40736fb5ee160fbaed",
+      "core/fgo/factor/position_factor.m": "3e4a3227226d09e5bccce2a95a01cf1c9ec0bcaa833869cf988b67e3a67a3fd4",
+      "core/fgo/factor/PropagateFactor.m": "f4825caa2e8306b00ccf571727ccc3acb2c5cd79ac54255d3e0c81f3d96a08b5",
+      "core/fgo/factor/RangeFactor.m": "6cb24004f159366add8e67d0edd0064a8c9cbd5f9eddcd46b6dad75ae1065a0d",
+      "core/fgo/factor/state.m": "c1fde0913b4b5c172443ba30be97136ef0ae3aabe3c240dd7a9a253f34dd12b4",
+      "core/fgo/factor_graph.m": "2199662c4b9858d86960fbcf2f3ad1491dccf627c2901dd6f04f036256c7abdd",
+      "core/filter/ekf.m": "624686ccc034e0587f2c227c60ef9d6a86afdfda618d81f5cc5bb277415cec8c",
+      "core/filter/kf.m": "b1a87359e36432acb8cff04a73f4f49e42ba05fc35fa9fb3939281b360f36259",
+      "core/filter/miekf.m": "d658550f129be4ca3dce0cb6abcbffce11212e88c9132d56e03c0e2bc6b3a9d2",
+      "core/filter/rekf.m": "8a5069d7163b5b4f0f148271a3c4bfa14c66a0039cde3cc09a4b4a5a44b6943d",
+      "core/filter/rmiekf.m": "4866f9730d8dd923f4d6a3a8b5a65a0da08a1c6544c6914c8a05c96b08a1c1e9",
+      "example_kfv_fgo_comparison.py": "b38e7b99545e4aedb71be56197fad04ae181ae26d55d0da96656576d3a8b7f0d",
+      "example_simulation_data.py": "9cf3eb6bda3079c8794a497117f0c00605e2e67c507dbb2939caa02e9935d541",
+      "example_sw_fgo.py": "6ddce45be9eb94556227651886a29e98dbfcf13cbf01ec4eb7ae747ba9e2c563"
+    },
+    "algorithms": {
+      "KFV_EKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "mode": "EKF",
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2,
+          "window_size": 1
+        },
+        "python_settings": {
+          "mode": "EKF",
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2.0,
+          "window_size": 1
+        }
+      },
+      "ReFGO_EKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2,
+          "window_size": 1,
+          "imitate_KFV": 1,
+          "autoDiff": 0
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2.0,
+          "window_size": 1,
+          "imitate_KFV": true,
+          "autoDiff": false
+        }
+      },
+      "KFV_iEKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "mode": "iEKF",
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2,
+          "window_size": 1
+        },
+        "python_settings": {
+          "mode": "iEKF",
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2.0,
+          "window_size": 1
+        }
+      },
+      "ReFGO_iEKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2,
+          "window_size": 1,
+          "imitate_KFV": 1,
+          "autoDiff": 0
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2.0,
+          "window_size": 1,
+          "imitate_KFV": true,
+          "autoDiff": false
+        }
+      },
+      "KFV_rEKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "mode": "rEKF",
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2,
+          "window_size": 1
+        },
+        "python_settings": {
+          "mode": "rEKF",
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2.0,
+          "window_size": 1
+        }
+      },
+      "ReFGO_rEKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2,
+          "window_size": 1,
+          "imitate_KFV": 1,
+          "autoDiff": 0
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2.0,
+          "window_size": 1,
+          "imitate_KFV": true,
+          "autoDiff": false
+        }
+      },
+      "KFV_riEKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "mode": "riEKF",
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2,
+          "window_size": 1
+        },
+        "python_settings": {
+          "mode": "riEKF",
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2.0,
+          "window_size": 1
+        }
+      },
+      "ReFGO_riEKF": {
+        "epochs": 100,
+        "matlab_settings": {
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.010000000000000002,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2,
+          "window_size": 1,
+          "imitate_KFV": 1,
+          "autoDiff": 0
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 2,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 2.0,
+          "window_size": 1,
+          "imitate_KFV": true,
+          "autoDiff": false
+        }
+      },
+      "SWFGO_w1": {
+        "epochs": 100,
+        "matlab_settings": {
+          "imitate_KFV": 0,
+          "autoDiff": 0,
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "radius": 100,
+          "omega": 0.06283185307179587,
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "R": 0.010000000000000002,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2,
+          "window_size": 1
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2.0,
+          "window_size": 1,
+          "imitate_KFV": false,
+          "autoDiff": false
+        }
+      },
+      "SWFGO_w5": {
+        "epochs": 100,
+        "matlab_settings": {
+          "imitate_KFV": 0,
+          "autoDiff": 0,
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "radius": 100,
+          "omega": 0.06283185307179587,
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "R": 0.010000000000000002,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2,
+          "window_size": 5
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2.0,
+          "window_size": 5,
+          "imitate_KFV": false,
+          "autoDiff": false
+        }
+      },
+      "SWFGO_w10": {
+        "epochs": 100,
+        "matlab_settings": {
+          "imitate_KFV": 0,
+          "autoDiff": 0,
+          "dt": 1,
+          "errX0": [
+            100,
+            -100,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              50,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              50,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              1
+            ]
+          ],
+          "radius": 100,
+          "omega": 0.06283185307179587,
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "R": 0.010000000000000002,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2,
+          "window_size": 10
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            100.0,
+            -100.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              50.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              50.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          ],
+          "Q": [
+            [
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0001
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": 0.01,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 2.0,
+          "window_size": 10,
+          "imitate_KFV": false,
+          "autoDiff": false
+        }
+      }
+    }
+  },
+  "real": {
+    "file": "matlab_real.mat",
+    "sha256": "859ab9fae16d9b81b5bad3d16e54f913db27e1d781f9c9fe80233f7ee225dd29",
+    "created_utc": "2026-09-09T15:46:10.945158+00:00",
+    "matlab_version": "26.1.0.3346908 (R2026a) Update 5",
+    "historical_source_root": "D:\\KFV-FGO\\KFV-FGO-Comparison",
+    "data_directory": "data/urban_nav_deep",
+    "data_sha256": {
+      "brdm.rnx": "44a31b7c53dd9f1999cc0e903a2c88a04099897a138ff93d823680c928a8e924",
+      "f9p_navi.obs": "5704de267bea4d779c7f9ffff03bb7ec76ee4f672990b7b6b1e1bc37b710254c",
+      "gt.txt": "1797e2eeae3c043eb37bc1589efc84b72da3b9bed469f59a4311b9fc88344a46",
+      "xsens_imu.csv": "25afe16262deee126a072f5b7912ef4ae4ea41165c0af177a263db5e58a9af92"
+    },
+    "matlab_source_sha256": {
+      "config/init_settings_gnss_ins.m": "ec7670e0be76275d1be8efa45d3200ae330582a73184fd6e537c227d88377fd0",
+      "config/init_settings_kfv_fgo_comparison.m": "611b1801917b3a31ab6bdbf543acc9a7cadc80df8ffba19fdb6e31b979beb87e",
+      "config/init_settings_swfgo.m": "66ce2a899016bdcede251d2115231ab74ed78520c92cd227dc9bf891e9cc48e9",
+      "core/estimator/Estimator.m": "d8f52f91d9a349241292faf250873645549db42f21edd479b2c0465ed9a82fa1",
+      "core/estimator/FgoEstimator.m": "0e3a60bef249b77cb931a2eef5cb53c91d64481d2da578408cf8a6f2b1eaa62f",
+      "core/estimator/KfvEstimator.m": "9770b0a6b20a3a734178d4ac18230a2dd2a9557fee87ed52cf888a98c0cd3508",
+      "core/fgo/construct_marginalization.m": "ccd614128ed70b69a181bc62c4fa472e1555a098a5b64f169f044556f84caf1a",
+      "core/fgo/construct_meas_prior_factor.m": "86198bf6e620321db67336b751d731273dea52329f1a8bec391df61a023acb25",
+      "core/fgo/construct_normal_equation.m": "588fb2d187c50dff5f3db8c86b54a97aa604099714a40c6686d0d3ae514e102c",
+      "core/fgo/estimate_fgo.m": "623e70ea8db5a98cf3d7220234d0adc0ed94216daf54c2d4a83ce948c67e00c7",
+      "core/fgo/factor/AutoDiffFactor.m": "d71e35dbc00d51f813474f13a612e83734651dd4b9b97bb3e4f9ca69aea91a10",
+      "core/fgo/factor/AutoDiffRobustFactor.m": "6ed7887b12221cd5cf8a2251a697540d1cfdd75d1fdc728e3157fa53ad4679b5",
+      "core/fgo/factor/factor.m": "5fe5f521567d50cc08c13571aca4fda133049dbbef57f6c229d0a733f8b6dcd1",
+      "core/fgo/factor/GnssPseudorangeFactor.m": "c75cf248791edd53c70c999380af61191e1f8aa514a99c377dda9b15a69b7e3c",
+      "core/fgo/factor/ImuPropagateFactor.m": "bf3037ec2ea808b8da536b84a15663a969cb53247ebeb98e9ca186a1c5a9cd31",
+      "core/fgo/factor/margin_factor.m": "5717214b267df33ced8bc0f38927d20cddb6bfc8ce3a576da232859f83921725",
+      "core/fgo/factor/pdr_factor.m": "947c33198e7f354f6fa6cec9ffbfb7a6ea958dcd432bf3dedada85e2a3bec3fd",
+      "core/fgo/factor/position_factor.m": "d440bed52a6ec31793155fca434d9a76f96ca6773b6045493147dd0415f5fa85",
+      "core/fgo/factor/PropagateFactor.m": "02012f93ca0e7ff148af30e20d2fe494a646f6b3ee1250fcf9a7da93e6302d16",
+      "core/fgo/factor/RangeFactor.m": "6cb24004f159366add8e67d0edd0064a8c9cbd5f9eddcd46b6dad75ae1065a0d",
+      "core/fgo/factor/state.m": "c1fde0913b4b5c172443ba30be97136ef0ae3aabe3c240dd7a9a253f34dd12b4",
+      "core/fgo/factor_graph.m": "2199662c4b9858d86960fbcf2f3ad1491dccf627c2901dd6f04f036256c7abdd",
+      "core/filter/ekf.m": "c4f90d7ca0dbe8ab0c48458a669fa49f9be8e0c5f15bd0b9ebbeb97868de112c",
+      "core/filter/evaluate_measurement_model.m": "fa3f2b98dd5b857f549b55c90a22dc99c9f7387eb95576355c9c00142216cf0a",
+      "core/filter/kf.m": "b1a87359e36432acb8cff04a73f4f49e42ba05fc35fa9fb3939281b360f36259",
+      "core/filter/measurement_covariance_matrix.m": "9deec4ab60edd72845188e46a292da0c2b7c95e8283578aebb3f42d58340bbad",
+      "core/filter/miekf.m": "c6ff456e47a3b2bdfe28c3f16a29a8c525691ec9d70f98a520df6004f4c03b97",
+      "core/filter/rekf.m": "a18a293712377f9e660a4730098409e7710f68b7d73c5fd208c2f197c7963f4e",
+      "core/filter/rmiekf.m": "ac765c5c7d46e8d453deea5c0beab91659f1001c153e936452891f3d3878a233",
+      "core/io/GnssImuDataset.m": "34854323eb8e82b61481399bef2a0c3ac72695709958c012cf533f86a6d5a244",
+      "core/io/ImuData.m": "ae660bccde727c7a51dc485c6d3952f6ab292ce69da17ab6dea9a4d41523184a",
+      "core/io/single_point_position.m": "d21f9263a919ab5648f29fac73615e1dae9d145414f4f8463b8445ece9f50a64",
+      "core/model/GnssObservationModel.m": "c53272f2cb2e6137903917d98417b85385cefecc505fad305cb7baac93deffef",
+      "core/model/ImuPropagationModel.m": "82009c6126286852fd37028eff8785b3b84518d6dcfc5a9ebf0aeeeed87a93bc"
+    },
+    "algorithms": {
+      "KFV_EKF": {
+        "epochs": 438,
+        "matlab_settings": {
+          "mode": "EKF",
+          "dt": 1,
+          "omega": [],
+          "errX0": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              10000
+            ]
+          ],
+          "Q": [
+            [
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "h": [],
+          "H": [],
+          "R": [],
+          "max_iteration": 5,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 1,
+          "window_size": 1
+        },
+        "python_settings": {
+          "mode": "EKF",
+          "dt": 1.0,
+          "errX0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "Q": [
+            [
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": null,
+          "max_iteration": 5,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 1,
+          "window_size": 1
+        }
+      },
+      "ReFGO_EKF": {
+        "epochs": 438,
+        "matlab_settings": {
+          "dt": 1,
+          "errX0": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              10000
+            ]
+          ],
+          "Q": [
+            [
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "omega": [],
+          "h": [],
+          "H": [],
+          "R": [],
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 1,
+          "window_size": 1,
+          "imitate_KFV": 1,
+          "autoDiff": 0
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "Q": [
+            [
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": null,
+          "max_iteration": 1,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "none",
+          "robust_delta": 1,
+          "window_size": 1,
+          "imitate_KFV": true,
+          "autoDiff": false
+        }
+      },
+      "SWFGO_w5": {
+        "epochs": 438,
+        "matlab_settings": {
+          "dt": 1,
+          "errX0": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "P0": [
+            [
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              25,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              250000,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              10000
+            ]
+          ],
+          "Q": [
+            [
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "omega": [],
+          "h": [],
+          "H": [],
+          "R": [],
+          "max_iteration": 5,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 1,
+          "window_size": 5,
+          "imitate_KFV": 0,
+          "autoDiff": 0
+        },
+        "python_settings": {
+          "dt": 1.0,
+          "errX0": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "P0": [
+            [
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              25.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              250000.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "Q": [
+            [
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.09,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0225,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0001,
+              0.0
+            ],
+            [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              10000.0
+            ]
+          ],
+          "omega": 0.06283185307179587,
+          "R": null,
+          "max_iteration": 5,
+          "thres_iteration": 1e-06,
+          "robust_kernel": "huber",
+          "robust_delta": 1,
+          "window_size": 5,
+          "imitate_KFV": false,
+          "autoDiff": false
+        }
+      }
+    }
+  }
+}
