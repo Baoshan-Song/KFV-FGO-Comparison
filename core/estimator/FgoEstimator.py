@@ -15,6 +15,13 @@ class FgoEstimator(Estimator):
         # Check if imitate_kfv mode is enabled
         is_imitate_kfv = bool(getattr(cfg, "imitate_kfv", False))
 
+        # window_size <= 1 is not allowed in normal FGO mode
+        if not is_imitate_kfv and cfg.window_size <= 1:
+            raise ValueError(
+                f"Standard FGO mode requires window_size > 1 (current window_size={cfg.window_size}). "
+                "If you want single-frame filtering (window_size=1), please enable 'imitate_kfv=True'."
+            )
+
         # 1. Initialize initial state x0
         pos = self.data["true_positions"][:, 0]
         vel = self.data["true_velocities"][:, 0]
