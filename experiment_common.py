@@ -75,7 +75,7 @@ def metrics(result, truth, elapsed_ms):
   count = min(est_x.shape[1], truth.shape[1])
   
   # 🔍 [Diagnostic 1]: Print actual shape of current estimator output matrix X
-  print(f"  [DEBUG Metrics] Estimated Trajectory Shape: {est_x.shape} | Ground Truth Shape: {truth.shape} | Aligned Frames Count: {count}")
+  # print(f"  [DEBUG Metrics] Estimated Trajectory Shape: {est_x.shape} | Ground Truth Shape: {truth.shape} | Aligned Frames Count: {count}")
   
   error = np.linalg.norm(est_x[:2, :count] - truth[:2, :count], axis=0)
   return {
