@@ -28,7 +28,7 @@ def make_data(seed=7, num_steps=100, anchor_radius=200.0,
 def make_config(err_x=100.0, err_y=-100.0, err_vx=0.0, err_vy=0.0,
                 p0_diag=(50.0, 50.0, 1.0, 1.0), kfv_mode="EKF",
                 robust_kernel="none", robust_delta=2.0,
-                max_iteration=1, window_size=1, imitate_kfv=False,
+                max_iteration=1, window_size=2, imitate_kfv=False,
                 autodiff=False):
   initial_error = np.array([err_x, err_y, err_vx, err_vy], dtype=float)
   covariance = np.diag(np.asarray(p0_diag, dtype=float))
