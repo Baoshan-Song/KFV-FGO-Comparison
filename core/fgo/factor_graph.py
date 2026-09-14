@@ -120,8 +120,16 @@ class FactorGraph:
         remaining_states = [state for state in active_states if state.gid not in remove]
 
         if removed_indices and remaining_indices:
-            J1 = np.hstack([self.J[:, idx * state_size:(idx + 1) * state_size] for idx in removed_indices])
-            J2 = np.hstack([self.J[:, idx * state_size:(idx + 1) * state_size] for idx in remaining_indices])
+            J1 = np.hstack([
+                self.J[:, idx * state_size:(idx + 1) * state_size]
+                for idx in removed_indices
+            ])
+
+            J2 = np.hstack([
+                self.J[:, idx * state_size:(idx + 1) * state_size]
+                for idx in remaining_indices
+            ])
+
             r = self.r
 
             H11 = J1.T @ J1
@@ -136,23 +144,48 @@ class FactorGraph:
                 H11_inv_H12 = np.linalg.solve(H11, H12)
                 H11_inv_b1 = np.linalg.solve(H11, b1)
             except np.linalg.LinAlgError:
-                H11_inv_H12, *_ = np.linalg.lstsq(H11, H12, rcond=None)
-                H11_inv_b1, *_ = np.linalg.lstsq(H11, b1, rcond=None)
+                H11_inv_H12, *_ = np.linalg.lstsq(
+                    H11, H12, rcond=None
+                )
+                H11_inv_b1, *_ = np.linalg.lstsq(
+                    H11, b1, rcond=None
+                )
 
             H_marg = H22 - H21 @ H11_inv_H12
             b_marg = b2 - H21 @ H11_inv_b1
 
-            U, S_vec, _ = np.linalg.svd((H_marg + H_marg.T) / 2.0)
-            S_mat = np.diag(np.sqrt(np.maximum(S_vec, 0.0)))
+            H_marg = (H_marg + H_marg.T) / 2.0
+
+            U, S_vec, _ = np.linalg.svd(H_marg)
+
+            S_mat = np.diag(
+                np.sqrt(np.maximum(S_vec, 0.0))
+            )
+
             J0 = S_mat @ U.T
-            
+
             try:
                 r0 = np.linalg.solve(J0.T, b_marg)
             except np.linalg.LinAlgError:
-                r0, *_ = np.linalg.lstsq(J0.T, b_marg, rcond=None)
+                r0, *_ = np.linalg.lstsq(
+                    J0.T, b_marg, rcond=None
+                )
 
-            self.add_factor(MarginFactor(remaining_states, J0, r0))
+            # IMPORTANT
+            # x0 is the state at which the marginal prior was created.
+            x0 = np.concatenate([
+                state.value.copy()
+                for state in remaining_states
+            ])
 
+            self.add_factor(
+                MarginFactor(
+                    remaining_states,
+                    J0,
+                    r0,
+                    x0
+                )
+            )
         for state in self.states:
             if state.gid in remove:
                 state.status = "Margin"
