@@ -72,6 +72,33 @@ the circular test data.
 The translated estimators preserve the MATLAB array layout: states are `4 x T`,
 measurements are `M x T`, and emitter positions are `2 x M`.
 
+### Optional window benchmark and phase timing (disabled by default)
+
+Normal comparison examples do not run a window sweep or render benchmark charts.
+`FgoEstimator(..., profile_stages=False)` is the default: the phase timers do
+not read a clock, allocate epoch records, or add timing fields to the result.
+The existing example entry points remain ordinary estimator comparisons.
+
+The previous plotting experiment is retained separately in
+`schur_window_benchmark.py`. Running it without flags only prints help.
+To deliberately repeat the experiment, use:
+
+```bash
+python schur_window_benchmark.py --run-benchmark --output ../outputs/window-benchmark
+# Additional opt-ins: --plot for charts; --profile-stages for phase timing.
+# To redraw previously saved measurements without running any estimators:
+python schur_window_benchmark.py --plot-only ../outputs/window-benchmark/summary.json
+```
+
+The optional benchmark saves CP95 and complete estimator wall/CPU timings,
+raw CSV samples, trajectories, parameters and source hashes. Windows are
+interleaved across repeated runs; paired policy order alternates. `--cpu`
+optionally pins only the benchmark process. Interrupted wall-time samples
+are flagged and retained. `--plot` requires Matplotlib; `--profile-stages`
+measures add state/factor, estimate, and marginalize separately. Pie charts
+require both options. No generated charts or prior experiment outputs are
+included in the repository.
+
 ### Google Colab
 
 The complete Colab workflow is in [KFV-FGO-Colab.ipynb](KFV-FGO-Colab.ipynb).
