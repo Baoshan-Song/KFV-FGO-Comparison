@@ -4,6 +4,10 @@ from config.config import range_measurement, range_jacobian
 
 
 class RangeFactor(Factor):
+	def __init__(self, states, z=None, omega=None, *, matlab_compat=False):
+		super().__init__(states, z, omega)
+		self.matlab_compat = matlab_compat
+
 	def evaluate(self):
 		measurement = self.z["range"]
 		emitter = self.z["emitter"]
@@ -26,6 +30,11 @@ class RangeFactor(Factor):
 			abs(residual) * np.sqrt(float(self.omega[0, 0])),
 			self.z["loss_type"], self.z["loss_delta"])
 		self.A, self.b = whiten(weight * jacobian[None, :], weight * residual, self.omega)
+		if self.matlab_compat:
+			# MATLAB updates Omega AFTER whitening, on every evaluation.
+			# This history-dependent weighting is not fixed-scale Huber MAP.
+			# Assignment avoids mutating the base matrix shared by new factors.
+			self.omega = self.omega * weight ** 2
 		return self
 
 __all__ = ["RangeFactor"]

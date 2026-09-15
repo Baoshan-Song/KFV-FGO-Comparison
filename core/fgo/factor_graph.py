@@ -106,7 +106,7 @@ class FactorGraph:
 
         return self
 
-    def marginalize(self, gids):
+    def marginalize(self, gids, *, matlab_compat=False):
         """Eliminate only incident factors, retaining one boundary-only prior.
 
         At this linearization, minimize ||Jm dm + Jb db - r|| over dm.
@@ -115,6 +115,8 @@ class FactorGraph:
         it avoids normal-equation cancellation and any full-window SVD.
         Factors not incident to the removed states are neither evaluated nor
         absorbed, so they remain in the objective exactly once.
+        matlab_compat freezes the resulting prior residual for the legacy
+        one-state ReFGO recurrence; ordinary marginalization stays anchored.
         """
         requested = {gids} if np.isscalar(gids) else set(gids)
         active = self.active_states
@@ -173,7 +175,8 @@ class FactorGraph:
                 prior_q, prior_a = qr(projected_j, mode="economic")
                 prior_b = prior_q.T @ projected_r
                 x0 = np.concatenate([state.value.copy() for state in boundary])
-                prior = MarginFactor(boundary, prior_a, prior_b, x0)
+                prior = MarginFactor(boundary, prior_a, prior_b, x0,
+                                     matlab_compat=matlab_compat)
                 self.last_marginalization["prior_rows"] = prior_a.shape[0]
 
         self._retire(remove, affected)

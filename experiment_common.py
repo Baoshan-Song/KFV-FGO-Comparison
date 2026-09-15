@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import time
 import numpy as np
-from IPython.display import HTML
 
 from config.config import Config, FilterConfig, FgoConfig, range_measurement
 from core.estimator import FgoEstimator, KfvEstimator
@@ -121,6 +120,8 @@ def run_pair(data, first, second):
   }
 
 def animate_pair(experiment, interval=70):
+  from IPython.display import HTML
+
   data = experiment["data"]
   truth = data["true_positions"]
   names = [item["name"] for item in experiment["estimators"]]

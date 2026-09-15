@@ -72,6 +72,42 @@ the circular test data.
 The translated estimators preserve the MATLAB array layout: states are `4 x T`,
 measurements are `M x T`, and emitter positions are `2 x M`.
 
+### MATLAB-compatible ReFGO and riEKF
+
+`python example_kfv_fgo_comparison.py` now compares riEKF with ReFGO using
+`imitate_kfv=True`, `window_size=1`, 10 iterations, and Huber loss on both sides.
+They share the same generated measurements and base measurement variance
+`R=0.01`; the entry retains seed 7 and a 0.2 outlier fraction (mean 0, sigma 10).
+IPython is only needed when explicitly requesting `animate_pair`.
+
+**Mathematical caveat: this mode reproduces the repository's MATLAB rules;
+it is mathematically inaccurate as an implementation of standard fixed-prior,
+fixed-noise-scale Huber MAP estimation.** In particular:
+
+- MATLAB `margin_factor.m` leaves the prior's A and b unchanged as the state
+  moves. Python now does the same in ReFGO, omitting the fixed-mean prior
+  correction used by standard iterated EKF/Gauss-Newton MAP updates.
+- MATLAB `RangeFactor.m` multiplies the stored information by the current
+  robust weight after every evaluation. Python now accumulates these weights
+  in ReFGO, matching the existing riEKF's cumulative R inflation. Standard
+  Huber IRLS would recompute weights against the unchanged base noise scale.
+
+These compatibility behaviors are enabled only by the ReFGO estimator path.
+It requires window size 1; larger windows raise a configuration error.
+Ordinary SW-FGO (`imitate_kfv=False`) retains anchored priors, fixed base
+measurement information, and the corrected local QR Schur elimination.
+Low-level factors and marginalization also default to those standard rules.
+The existing Kalman filter implementation and MATLAB sources are unchanged.
+
+Both estimators retain the last iteration's pre-update linearization for
+posterior information, as in MATLAB. ReFGO still solves its own factor graph;
+it does not invoke the filter or copy filter estimates. Trajectory agreement
+demonstrates compatibility with this recurrence, not correctness of the
+standard Huber MAP formulation or exact nonlinear Bayesian equivalence.
+Compatibility factor evaluation is intentionally stateful: extra evaluations
+would advance its weight history. The normal ReFGO solve evaluates each
+measurement factor once per iteration and retires it after the solve.
+
 ### Optional window benchmark and phase timing (disabled by default)
 
 Normal comparison examples do not run a window sweep or render benchmark charts.

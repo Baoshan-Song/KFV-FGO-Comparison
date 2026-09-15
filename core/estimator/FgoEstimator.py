@@ -19,6 +19,8 @@ class FgoEstimator(Estimator):
         range_meas = self.data["toa_measurements"]
 
         is_imitate_kfv = getattr(cfg, "imitate_kfv", False) or getattr(cfg, "imitate_KFV", False)
+        if is_imitate_kfv and cfg.window_size != 1:
+            raise ValueError("MATLAB ReFGO compatibility requires window_size=1")
 
         # 1. Prior Factor
         with timing.measure("add_state_factor_ms", 1):
@@ -58,7 +60,7 @@ class FgoEstimator(Estimator):
             if is_imitate_kfv:
                 # i-1
                 with timing.measure("marginalize_ms", i):
-                    graph.marginalize(i - 1)
+                    graph.marginalize(i - 1, matlab_compat=True)
 
             # -------------------------------------------------------------
             # C. add all Range factors
@@ -72,7 +74,8 @@ class FgoEstimator(Estimator):
                         "loss_delta": cfg.robust_delta,
                         "autoDiff": getattr(cfg, "autoDiff", False),
                     }
-                    range_factor = RangeFactor([new_state], measurement, omega_r)
+                    range_factor = RangeFactor([new_state], measurement, omega_r,
+                                               matlab_compat=is_imitate_kfv)
                     graph.add_factor(range_factor)
 
             # -------------------------------------------------------------
