@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.linalg import qr
 from .factor.position_factor import PositionFactor
 from .factor.margin_factor import MarginFactor
 
@@ -18,6 +19,7 @@ class FactorGraph:
         self.margin_time = 0.0
         self.margin_meas_time = 0.0
         self.residual_norm_all = []
+        self.last_marginalization = None
 
     @property
     def active_states(self):
@@ -105,103 +107,101 @@ class FactorGraph:
         return self
 
     def marginalize(self, gids):
-        """Marginalize specified states, aligned with MATLAB construct_marginalization."""
-        remove = {gids} if np.isscalar(gids) else set(gids)
-        self.normal_equation()
-        
-        active_states = self.active_states
-        if not active_states:
+        """Eliminate only incident factors, retaining one boundary-only prior.
+
+        At this linearization, minimize ||Jm dm + Jb db - r|| over dm.
+        A rank-revealing QR projects Jb and r onto the left nullspace of Jm.
+        This is the square-root form of the (generalized) Schur complement;
+        it avoids normal-equation cancellation and any full-window SVD.
+        Factors not incident to the removed states are neither evaluated nor
+        absorbed, so they remain in the objective exactly once.
+        """
+        requested = {gids} if np.isscalar(gids) else set(gids)
+        active = self.active_states
+        removed = [state for state in active if state.gid in requested]
+        remove = {state.gid for state in removed}
+        if not removed:
             return self
+        affected = [factor for factor in self.factors if factor.status != "Margin"
+                    and any(state.gid in remove for state in factor.states)]
+        neighbor_gids = {state.gid for factor in affected for state in factor.states
+                         if state.gid not in remove and state.status != "Margin"}
+        boundary = [state for state in active if state.gid in neighbor_gids]
+        removed_dim = sum(len(state.value) for state in removed)
+        boundary_dim = sum(len(state.value) for state in boundary)
+        self.last_marginalization = {"removed_dim": removed_dim,
+                                    "boundary_dim": boundary_dim,
+                                    "local_rows": 0, "prior_rows": 0,
+                                    "factor_count": len(affected), "removed_rank": 0}
+        prior = None
+        if affected and boundary:
+            evaluated = [factor.evaluate() for factor in affected]
+            row_count = sum(np.asarray(factor.b).size for factor in evaluated)
+            offsets = {}
+            column = 0
+            for state in removed + boundary:
+                offsets[state.gid] = column
+                column += len(state.value)
+            local_j = np.zeros((row_count, column))
+            residual = np.zeros(row_count)
+            row = 0
+            for factor in evaluated:
+                b = np.asarray(factor.b).reshape(-1)
+                residual[row:row + b.size] = b
+                source_column = 0
+                for state in factor.states:
+                    size = len(state.value)
+                    if state.gid not in offsets:
+                        raise ValueError("Active factor references a retired state")
+                    target = offsets[state.gid]
+                    local_j[row:row + b.size, target:target + size] += factor.A[
+                        :, source_column:source_column + size]
+                    source_column += size
+                row += b.size
 
-        state_size = len(active_states[0].value)
+            q, r, _ = qr(local_j[:, :removed_dim], mode="full", pivoting=True)
+            diagonal = np.abs(np.diag(r))
+            tolerance = (np.finfo(local_j.dtype).eps * max(row_count, removed_dim)
+                         * (diagonal.max() if diagonal.size else 0.0))
+            rank = int(np.count_nonzero(diagonal > tolerance))
+            projected_j = q[:, rank:].T @ local_j[:, removed_dim:]
+            projected_r = q[:, rank:].T @ residual
+            self.last_marginalization.update(local_rows=row_count, removed_rank=rank)
+            if projected_j.shape[0]:
+                # Compress to at most boundary_dim rows. The discarded residual
+                # component is a state-independent constant, not information.
+                prior_q, prior_a = qr(projected_j, mode="economic")
+                prior_b = prior_q.T @ projected_r
+                x0 = np.concatenate([state.value.copy() for state in boundary])
+                prior = MarginFactor(boundary, prior_a, prior_b, x0)
+                self.last_marginalization["prior_rows"] = prior_a.shape[0]
 
-        removed_indices = [index for index, state in enumerate(active_states) if state.gid in remove]
-        remaining_indices = [index for index, state in enumerate(active_states) if state.gid not in remove]
-        remaining_states = [state for state in active_states if state.gid not in remove]
+        self._retire(remove, affected)
+        if prior is not None:
+            self.add_factor(prior)
+        return self
 
-        if removed_indices and remaining_indices:
-            J1 = np.hstack([
-                self.J[:, idx * state_size:(idx + 1) * state_size]
-                for idx in removed_indices
-            ])
-
-            J2 = np.hstack([
-                self.J[:, idx * state_size:(idx + 1) * state_size]
-                for idx in remaining_indices
-            ])
-
-            r = self.r
-
-            H11 = J1.T @ J1
-            H12 = J1.T @ J2
-            H21 = J2.T @ J1
-            H22 = J2.T @ J2
-
-            b1 = J1.T @ r
-            b2 = J2.T @ r
-
-            try:
-                H11_inv_H12 = np.linalg.solve(H11, H12)
-                H11_inv_b1 = np.linalg.solve(H11, b1)
-            except np.linalg.LinAlgError:
-                H11_inv_H12, *_ = np.linalg.lstsq(
-                    H11, H12, rcond=None
-                )
-                H11_inv_b1, *_ = np.linalg.lstsq(
-                    H11, b1, rcond=None
-                )
-
-            H_marg = H22 - H21 @ H11_inv_H12
-            b_marg = b2 - H21 @ H11_inv_b1
-
-            H_marg = (H_marg + H_marg.T) / 2.0
-
-            U, S_vec, _ = np.linalg.svd(H_marg)
-
-            S_mat = np.diag(
-                np.sqrt(np.maximum(S_vec, 0.0))
-            )
-
-            J0 = S_mat @ U.T
-
-            try:
-                r0 = np.linalg.solve(J0.T, b_marg)
-            except np.linalg.LinAlgError:
-                r0, *_ = np.linalg.lstsq(
-                    J0.T, b_marg, rcond=None
-                )
-
-            # IMPORTANT
-            # x0 is the state at which the marginal prior was created.
-            x0 = np.concatenate([
-                state.value.copy()
-                for state in remaining_states
-            ])
-
-            self.add_factor(
-                MarginFactor(
-                    remaining_states,
-                    J0,
-                    r0,
-                    x0
-                )
-            )
+    def _retire(self, remove, affected):
+        """Shared cleanup for marginalization and direct discard."""
         for state in self.states:
             if state.gid in remove:
-                state.status = "Margin"
-                state.lid = 0
-
-        for factor in self.factors:
-            if any(state.gid in remove for state in factor.states):
-                factor.status = "Margin"
-
-        lid_counter = 1
-        for state in self.states:
-            if state.status != "Margin":
-                state.lid = lid_counter
-                lid_counter += 1
-
+                state.status, state.lid = "Margin", 0
+        for factor in affected:
+            factor.status = "Margin"
+        # Keep retired state values for final-trajectory evaluation, but release
+        # consumed factors so active processing does not scan the factor archive.
+        self.factors = [factor for factor in self.factors if factor.status != "Margin"]
+        for lid, state in enumerate(self.active_states, 1):
+            state.lid = lid
         self.win_size = len(self.active_states)
+
+    def discard(self, gids):
+        """Remove the same states and incident factors, without a new prior."""
+        requested = {gids} if np.isscalar(gids) else set(gids)
+        remove = {state.gid for state in self.active_states if state.gid in requested}
+        affected = [factor for factor in self.factors if factor.status != "Margin"
+                    and any(state.gid in remove for state in factor.states)]
+        self._retire(remove, affected)
         return self
 
     def mar_measurements(self, gid):

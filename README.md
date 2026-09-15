@@ -99,6 +99,25 @@ measures add state/factor, estimate, and marginalize separately. Pie charts
 require both options. No generated charts or prior experiment outputs are
 included in the repository.
 
+### Corrected local Schur marginalization
+
+Ordinary SW-FGO absorbs only active factors incident to a removed state.
+Pivoted QR eliminates the removed columns; a second QR compresses the prior
+onto the retained boundary states. Unaffected factors remain exactly once,
+avoiding the upstream double counting. This is square-root Schur elimination
+at the chosen linearization point, not exact nonlinear marginalization.
+For the adjacent-state motion and single-state range graph, the prior is at
+most 4 x 4 and does not require a full-window SVD.
+
+Position priors use +I for the A delta = b, x += delta convention. States are
+retired only on window overflow after solving; W=100 keeps the full graph in
+the 100-epoch benchmark. Direct discard uses the same cleanup without a prior.
+Archived state values preserve the final-history CP95 metric. The optional
+benchmark uses outlier_weight=0 and at most 10 GN iterations; its execution,
+plotting and phase timing remain disabled unless explicitly requested.
+
+Run regression tests with `python -m unittest discover -s tests -v`.
+
 ### Google Colab
 
 The complete Colab workflow is in [KFV-FGO-Colab.ipynb](KFV-FGO-Colab.ipynb).

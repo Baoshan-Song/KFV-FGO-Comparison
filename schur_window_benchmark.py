@@ -38,7 +38,7 @@ COLORS = {"schur": "#2563A6", "discard": "#D88C38"}
 
 
 class ComparisonGraph(FactorGraph):
-    """Temporary adapter; the Schur path calls the unmodified source method."""
+    """Switch retention policy while sharing estimation and factor cleanup."""
 
     def __init__(self, config, policy):
         super().__init__(config)
@@ -55,25 +55,19 @@ class ComparisonGraph(FactorGraph):
     def marginalize(self, gids):
         self.removal_calls += 1
         if self.policy == "schur":
-            return super().marginalize(gids)
-        # Same state/factor retirement and reindexing as the source, without
-        # creating a Schur prior. Retain the state archive for complete CP95.
-        remove = {gids} if np.isscalar(gids) else set(gids)
-        for state in self.states:
-            if state.gid in remove:
-                state.status, state.lid = "Margin", 0
-        for factor in self.factors:
-            if any(state.gid in remove for state in factor.states):
-                factor.status = "Margin"
-        for lid, state in enumerate(self.active_states, 1):
-            state.lid = lid
-        self.win_size = len(self.active_states)
+            super().marginalize(gids)
+            stats = self.last_marginalization
+            if stats is not None:
+                self.max_boundary_dim = max(self.max_boundary_dim, stats["boundary_dim"])
+                self.max_local_rows = max(self.max_local_rows, stats["local_rows"])
+        else:
+            super().discard(gids)
         return self
 
 
 def run_case(data, window, policy, profile_stages=False):
     config = Config(fgo=FgoConfig(window_size=window, imitate_kfv=False,
-                                 robust_kernel="none", max_iteration=1,
+                                 robust_kernel="none", max_iteration=10,
                                  autodiff=False))
     graphs = []
 
@@ -266,9 +260,9 @@ def main(argv=None):
                             datetime.now().strftime("schur-window-benchmark-%Y%m%d-%H%M%S"))
     output.mkdir(parents=True, exist_ok=False)
     before = source_hashes(root)
-    # Retain the upstream entry geometry, seed and outlier mixture.
+    # Same geometry and seed as the earlier comparison, with no outliers.
     data = generate_data(num_steps=100, radius=100, emitter_radius=105,
-                         gmm_weights=(.8, .2), gmm_means=(0., 0.),
+                         gmm_weights=(1., 0.), gmm_means=(0., 0.),
                          gmm_sigmas=(.1, 10.), seed=7)
     np.savez_compressed(output / "input_data.npz", **data)
     records, aggregates, trajectories = [], [], {}
@@ -337,6 +331,13 @@ def main(argv=None):
     suspect = [{k: row[k] for k in ("repeat", "window", "policy", "elapsed_ms", "cpu_ms", "started_utc")}
                for row in records if row["timing_suspect"]]
     batch_control = None
+    if 100 in windows:
+        np.testing.assert_array_equal(trajectories["schur_w100"], trajectories["discard_w100"])
+        batch_rows = {r["policy"]: r for r in aggregates if r["window"] == 100}
+        batch_control = {"trajectories_identical": True,
+                         "removal_calls": {p: r["removal_calls"] for p, r in batch_rows.items()},
+                         "schur_vs_discard_wall_percent": 100 * (batch_rows["schur"]["elapsed_ms"] / batch_rows["discard"]["elapsed_ms"] - 1),
+                         "schur_vs_discard_cpu_percent": 100 * (batch_rows["schur"]["cpu_ms"] / batch_rows["discard"]["cpu_ms"] - 1)}
     summary = {"created_utc": datetime.now(timezone.utc).isoformat(),
                "source_commit": subprocess.check_output(
                    ["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
@@ -346,10 +347,10 @@ def main(argv=None):
                "logical_cpu": args.cpu,
                "run_order": "Windows shuffled within each repeat (seed 730); paired policies alternate first position across repeats",
                "platform": platform.platform(), "numpy": np.__version__,
-               "initial_error": [100, -100, 0, 0], "max_iteration": 1, "robust_kernel": "none",
+               "initial_error": [100, -100, 0, 0], "max_iteration": 10, "robust_kernel": "none",
                "imitate_kfv": False,
-               "data": {"anchor_radius": 105, "outlier_weight": .2, "outlier_sigma": 10., "white_sigma": .1},
-               "marginalization_algorithm": None,
+               "data": {"anchor_radius": 105, "outlier_weight": 0., "outlier_sigma": 10., "white_sigma": .1},
+               "marginalization_algorithm": "Incident factors only; pivoted local QR elimination and boundary-only square-root prior",
                "trajectory_semantics": "State at retirement; remaining window at final solve; all 100 epochs",
                "timing_scope": "Complete estimator run; excludes input generation, metrics and plotting",
                "cpu_timing_scope": "Process user plus system CPU time over the same estimator call; excludes time not executing",
@@ -363,10 +364,11 @@ def main(argv=None):
                    "marginalize_ms": "Entire marginalization/discard call including any internal assembly, prior creation and retirement; no double counting",
                    "other_ms": "Unassigned loop, output and profiling overhead; wall time minus the three stages",
                    "pie_denominator": "Sum of mean times of the three measured phases; excludes other_ms"},
-               "window_behavior": "Upstream forced initial-state removal and post-solve cleanup",
+               "window_behavior": "Remove oldest state only on overflow; W=100 performs zero removals",
                "retained_behavior": ["Optimization before window cleanup (may solve W+1 states)",
                    "Original motion model, noise covariance, observation schedule and final-trajectory metric"],
-               "shared_fixes": [],
+               "shared_fixes": ["Position prior uses positive identity Jacobian for A*delta=b, x+=delta",
+                   "No forced initial-state removal; both policies release retired factors"],
                "source_hashes": before, "aggregates": aggregates}
     write_csv(output / "window_summary.csv", aggregates)
     np.savez_compressed(output / "trajectories.npz", truth=data["true_positions"], **trajectories)

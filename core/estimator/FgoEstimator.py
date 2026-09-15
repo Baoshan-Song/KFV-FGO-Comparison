@@ -92,10 +92,7 @@ class FgoEstimator(Estimator):
                         graph.mar_measurements(i)
             else:
                 # Standard SW-FGO: Schur complement 
-                if cfg.window_size > 1 and len(graph.states) == 2:
-                    with timing.measure("marginalize_ms", i):
-                        graph.marginalize(i - 1)
-                
+                # Retire only on overflow. W >= N retains the complete graph.
                 if graph.win_size > cfg.window_size:
                     with timing.measure("marginalize_ms", i):
                         graph.marginalize(i - cfg.window_size)
