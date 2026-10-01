@@ -19,7 +19,7 @@ classdef PropagateFactor < factor
             F = obj.config.FGO.F(cur_state.value, obj.config.FGO.dt, obj.config.FGO.omega);
 
             % Propagation factor
-            obj.A = [ F, -eye(4)];
+            obj.A = [F, -eye(length(new_state.value))];
             
             % predictde_new_state_value = obj.config.FGO.f(cur_state.value, ...
             %                                             obj.config.FGO.dt);       

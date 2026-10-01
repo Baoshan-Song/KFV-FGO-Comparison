@@ -4,6 +4,7 @@ config.data.mode = 'sim';
 config.data.path = 'circle_cv_gmm_L4.mat';
 
 config.method = 'KFV';
+config.state_dim = 4;
 %% KFV configuration
 config.KFV.mode = 'EKF';  % EKF, iEKF, rEKF, riEKF
 % predict

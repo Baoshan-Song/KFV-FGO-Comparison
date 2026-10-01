@@ -2,6 +2,7 @@
 % Input data source
 config.data.mode = 'sim';
 config.data.path = 'circle_cv_gmm_L4.mat';
+config.state_dim = 4;
 
 %% FGO configuration: automatically tranform KFV to FGO, thus with no need for FGO configuration
 % % whether using FGO template to imitate KFV (Markov assumption and closed-form solution)

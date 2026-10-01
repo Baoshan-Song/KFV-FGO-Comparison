@@ -14,7 +14,8 @@ classdef pdr_factor < factor
             new_state = obj.states(2);
 
             % Propagation factor
-            obj.A = [eye(4), -eye(4)];
+            state_size = length(cur_state.value);
+            obj.A = [eye(state_size), -eye(state_size)];
             obj.b = obj.z - (new_state.value - cur_state.value) ;
             
             % (TODO): Mutiply the obj.Omega to A

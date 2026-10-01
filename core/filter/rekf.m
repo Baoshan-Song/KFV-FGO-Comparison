@@ -1,4 +1,4 @@
-function [X_est, P_est, X_pred, P_pred, debug_info] = rekf(X_prev, P_prev, dt,omega,  f, F, Q, toa_measurements, emitter_positions, h, H, R_base, loss_type, delta)
+function [X_est, P_est, X_pred, P_pred, debug_info] = rekf(X_prev, P_prev, dt,omega,  f, F, Q, toa_measurements, emitter_positions, h, H, R_base, loss_type, delta, observation_function)
 % Initialize debug information structure
 debug_info = struct();
 
@@ -10,39 +10,20 @@ debug_info.prediction_time = toc;  % Record prediction time
 
 tic;  % Start timer for the update step
 
-if nargin < 8
+if nargin < 14 || isempty(delta)
     delta = 1.0;
 end
-if nargin < 7
+if nargin < 13 || isempty(loss_type)
     loss_type = 'huber';
 end
-
-num_emitters = size(emitter_positions,2);
-
-% update（measurements from multiple emitters）
-z = toa_measurements;
-H_all = zeros(num_emitters, 4);
-h_all = zeros(num_emitters, 1);
-R = R_base * eye(num_emitters);
-
-% Compute Jacobian and residual for all emitters
-jacobian_all = zeros(num_emitters, 4);  % Jacobian matrix for all emitters
-residual_norm_all = zeros(num_emitters, 1);  % Residual norms for each emitter
-
-for i = 1:num_emitters
-    H_all(i,:) = H(X_pred, emitter_positions(:,i));
-    h_all(i) = h(X_pred, emitter_positions(:,i));
-
-    % Compute residual (difference between measured and predicted values)
-    residual = z(i) - h_all(i);
-
-    % Compute Jacobian (already computed)
-    jacobian_all(i, :) = H_all(i, :);
-
-    % Compute the residual norm (L2 norm)
-    residual_norm_all(i) = residual^2;
+if nargin < 15
+    observation_function = [];
 end
-y = z - h_all;
+
+state_size = length(X_pred);
+
+[y, H_all, R, jacobian_all, residual_norm_all] = evaluate_measurement_model( ...
+    X_pred, toa_measurements, emitter_positions, h, H, R_base, observation_function);
 S = H_all * P_pred * H_all' + R;
 
 % Normalized residual
@@ -63,7 +44,7 @@ R_r = R;            % Optional, reweight H and y here is equivalent to reweighti
 S_r = H_r * P_pred * H_r' + R_r;
 K = P_pred * H_r' / S_r;
 X_est = X_pred + K * y_r;
-P_est = (eye(length(X_pred)) - K * H_r) * P_pred;
+P_est = (eye(state_size) - K * H_r) * P_pred;
 
 debug_info.update_time = toc;  % Record update time
 tic;

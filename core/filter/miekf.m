@@ -1,4 +1,7 @@
-function [X_est, P_est, X_pred, P_pred, debug_info] = miekf(X_prev, P_prev, dt, omega, f, F, Q,  toa_measurements, emitter_positions, h, H, R_base, max_iter, thres)
+function [X_est, P_est, X_pred, P_pred, debug_info] = miekf(X_prev, P_prev, dt, omega, f, F, Q,  toa_measurements, emitter_positions, h, H, R_base, max_iter, thres, observation_function)
+if nargin < 15
+    observation_function = [];
+end
 % Initialize debug information structure
 debug_info = struct();
 
@@ -12,53 +15,26 @@ debug_info.prediction_time = toc;  % Record prediction time
 % Measurement Update
 
 
-num_emitters = size(emitter_positions,2);
+state_size = length(X_pred);
 
 X_est = X_pred;
 P_est = P_pred;
-I = eye(length(X_est));
+I = eye(state_size);
 X_last_est = X_est;
 
-
-% Compute Jacobian and residual for all emitters
-jacobian_all = zeros(num_emitters, 4);  % Jacobian matrix for all emitters
-% residual_norm_all = zeros(num_emitters, 1);  % Residual norms for each emitter
+jacobian_all = [];
 residual_norm_all = [];
 tic;  % Start timer for the update step
 
 for iter = 1:max_iter
 
-
-    z = toa_measurements;
-    H_all = zeros(num_emitters, 4);
-    h_all = zeros(num_emitters, 1);
-    R = R_base * eye(num_emitters);
-
-    % collect the residual norm --sbs
-    residual_sum = 0;
-
-    for i = 1:num_emitters
-        H_all(i,:) = H(X_last_est, emitter_positions(:,i));
-        h_all(i) = h(X_last_est, emitter_positions(:,i));
-
-        % for residual norm output, which could increase computing burden
-        if 0
-            % Compute residual (difference between measured and predicted values)
-            residual = z(i) - h_all(i);
-            % Compute Jacobian (already computed)
-            jacobian_all(i, :) = H_all(i, :);
-            % Compute the residual norm (L2 norm)
-            residual_sum = residual_sum+ residual^2/R(i,i);
-        end
-
+    [y, H_all, R, jacobian_all, residual_norm_all] = evaluate_measurement_model( ...
+        X_last_est, toa_measurements, emitter_positions, h, H, R_base, observation_function);
+    if isempty(observation_function)
+        % Preserve the legacy debug-output convention for simulations.
+        jacobian_all = zeros(size(H_all));
+        residual_norm_all = [];
     end
-
-    % for residual norm output, which could increase computing burden
-    if 0
-        residual_norm_all = [residual_norm_all,[X_last_est; sqrt(residual_sum)]];
-    end
-
-    y = z - h_all ;
     S = H_all * P_pred * H_all' + R;
     K = P_pred * H_all' / S;                 % or: K = P_pred * H' * (S \ eye(size(S)))
     X_est = X_last_est + K * y;
