@@ -1,0 +1,95 @@
+<div id="__ID__" class="kfv-comparison">
+<style>
+#__ID__ {font:15px/1.45 system-ui,sans-serif;color:#203044;background:#f5f8fc;padding:18px;border-radius:12px;max-width:1200px}
+#__ID__ .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+#__ID__ button,#__ID__ select,#__ID__ input{font:inherit}
+#__ID__ button,#__ID__ select{padding:6px 9px;border:1px solid #bdcbd8;border-radius:5px;background:white;color:#203044}
+#__ID__ .panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#__ID__ .panel{padding:12px;background:white;border:1px solid #d7e0e9;border-radius:8px}
+#__ID__ canvas{width:100%;height:auto;display:block}
+#__ID__ h3{margin:0 0 4px;font-size:18px}
+#__ID__ .stats,#__ID__ .status{font-size:13px;color:#455b70}
+@media(max-width:700px){#__ID__ .panels{grid-template-columns:1fr}}
+</style>
+<strong>Online estimates and residuals</strong>
+<div>Both methods use the state available at each epoch. The initial prior at k = 0 is excluded from residuals and accuracy statistics.</div>
+<div class="controls"><button class="play">Play</button><input class="frame" type="range" min="0" value="1" style="flex:1;min-width:180px"><span class="label"></span></div>
+<div class="controls"><label>Range view <select class="residual"><option value="postfit">Post-fit z − h(xk|k) [m]</option><option value="prefit">Innovation z − h(xk|k−1) [m]</option><option value="truth">Measurement error z − h(xtruth) [m]</option></select></label><label>Y limit ± <input class="limit" type="number" min="0.001" step="0.1" placeholder="Auto" style="width:85px"> m</label></div>
+<div class="controls"><label>Iteration view <select class="objective"><option value="objective">Full objective (dimensionless)</option><option value="measurement_residual_norm_m">Unweighted range residual norm [m]</option></select></label></div>
+<div class="panels"></div>
+<div class="note">The objective includes the prior and all active factors, with the selected robust loss. Its value is not comparable between different window sizes or losses. It need not decrease at every undamped Gauss–Newton step. A small post-fit residual is not proof that an outlier was removed.</div>
+<script>
+(()=>{
+const root=document.getElementById('__ID__'), data=__PAYLOAD__;
+const palette=['#1769aa','#dc7027','#16987e','#7853a6','#c64170','#74822a'];
+const frameInput=root.querySelector('.frame'), play=root.querySelector('.play'), selector=root.querySelector('.residual'), limit=root.querySelector('.limit'), objective=root.querySelector('.objective');
+frameInput.max=data.frames-1;
+const panels=data.names.map((name,i)=>{
+ const panel=document.createElement('div');panel.className='panel';
+ const title=document.createElement('h3');title.textContent=name;panel.appendChild(title);
+ const stats=document.createElement('div');stats.className='stats';const m=data.metrics[i];
+ stats.textContent=`RMSE ${m.rmse.toFixed(3)} m · CP95 ${m.cp95.toFixed(3)} m · ${m.per_step_ms.toFixed(2)} ms/update`;panel.appendChild(stats);
+ const canvas=document.createElement('canvas');canvas.width=660;canvas.height=830;panel.appendChild(canvas);
+ const status=document.createElement('div');status.className='status';panel.appendChild(status);
+ root.querySelector('.panels').appendChild(panel);return {ctx:canvas.getContext('2d'),status};
+});
+const finite=v=>typeof v==='number'&&Number.isFinite(v);
+const positionBound=Math.max(1,...data.truth.flat().map(Math.abs),...data.trajectories.flat(2).map(Math.abs))*1.12;
+function axes(c,top,bottom,xmin,xmax,ymin,ymax,xlabel,ylabel,square=false){
+ const left=square?(660-bottom+top)/2:78,right=square?(660+bottom-top)/2:638;
+ const X=x=>left+(x-xmin)/(xmax-xmin)*(right-left),Y=y=>bottom-(y-ymin)/(ymax-ymin)*(bottom-top);
+ c.font='15px system-ui';c.lineWidth=1;
+ for(let i=0;i<=4;i++){
+  const x=xmin+(xmax-xmin)*i/4,y=ymin+(ymax-ymin)*i/4;
+  c.strokeStyle='#e2e8ee';c.beginPath();c.moveTo(X(x),top);c.lineTo(X(x),bottom);c.stroke();
+  c.beginPath();c.moveTo(left,Y(y));c.lineTo(right,Y(y));c.stroke();
+  const format=v=>Math.abs(v)>=1000?v.toExponential(1):String(Number(v.toFixed(2)));
+  c.fillStyle='#536478';c.textAlign='center';c.fillText(format(x),X(x),bottom+21);
+  c.textAlign='right';c.fillText(format(y),left-9,Y(y)+5);
+ }
+ c.strokeStyle='#8093a5';c.strokeRect(left,top,right-left,bottom-top);
+ c.fillStyle='#203044';c.textAlign='center';c.font='16px system-ui';c.fillText(xlabel,(left+right)/2,bottom+44);
+ c.save();c.translate(left-59,(top+bottom)/2);c.rotate(-Math.PI/2);c.fillText(ylabel,0,0);c.restore();return {X,Y,left,right,top,bottom};
+}
+function line(c,points,axis,color,width=2){
+ c.save();c.beginPath();c.rect(axis.left,axis.top,axis.right-axis.left,axis.bottom-axis.top);c.clip();
+ c.beginPath();c.strokeStyle=color;c.lineWidth=width;let started=false;
+ for(const [x,y] of points){if(!finite(x)||!finite(y)){started=false;continue;}if(started)c.lineTo(axis.X(x),axis.Y(y));else c.moveTo(axis.X(x),axis.Y(y));started=true;}
+ c.stroke();c.restore();
+}
+function render(){
+ const frame=Number(frameInput.value), key=selector.value, field=objective.value;
+ root.querySelector('.label').textContent=`Epoch ${frame} / ${data.frames-1}`;
+ const residuals=data.residuals[key], requested=Number(limit.value);
+ const bound=requested>0?requested:1.12*Math.max(.01,...residuals.flat(2).filter(finite).map(Math.abs));
+ const traces=data.diagnostics.map(d=>d[frame]?.iteration_trace||[]);
+ const vals=traces.flatMap(t=>t.map(v=>v[field])).filter(finite);
+ const xmax=Math.max(1,...traces.map(t=>t.length-1)), ymax=Math.max(.0001,...vals)*1.1;
+ panels.forEach(({ctx:c,status},i)=>{
+  c.clearRect(0,0,660,830);c.font='16px system-ui';c.textAlign='left';c.fillStyle='#203044';c.fillText('Truth (grey) and online trajectory (colour)',78,23);
+  const pos=axes(c,36,278,-positionBound,positionBound,-positionBound,positionBound,'x [m]','y [m]',true);
+  line(c,data.truth[0].slice(0,frame+1).map((x,k)=>[x,data.truth[1][k]]),pos,'#8a9199',2);
+  const trajectory=data.trajectories[i];line(c,trajectory[0].slice(0,frame+1).map((x,k)=>[x,trajectory[1][k]]),pos,palette[i],2.5);
+  c.beginPath();c.fillStyle=palette[i];c.arc(pos.X(trajectory[0][frame]),pos.Y(trajectory[1][frame]),4,0,2*Math.PI);c.fill();
+  c.font='15px system-ui';c.textAlign='left';
+  residuals[i].forEach((_,j)=>{c.fillStyle=palette[j%palette.length];c.fillText(`Anchor ${j+1}`,78+j*90,348)});
+  const res=axes(c,361,516,0,Math.max(1,data.frames-1),-bound,bound,'Epoch k','Range residual [m]');
+  residuals[i].forEach((r,j)=>{
+   line(c,r.slice(0,frame+1).map((v,k)=>[k,v]),res,palette[j%palette.length]);
+   if(finite(r[frame])&&Math.abs(r[frame])<=bound){c.beginPath();c.arc(res.X(frame),res.Y(r[frame]),3,0,2*Math.PI);c.fillStyle=palette[j%palette.length];c.fill();}
+  });
+  c.fillStyle='#203044';c.font='16px system-ui';c.textAlign='left';c.fillText(`Current epoch ${frame}: ${field==='objective'?'full objective':'range residual norm'}`,78,590);
+  const opt=axes(c,605,752,0,xmax,0,ymax,'Gauss–Newton / IEKF iteration',field==='objective'?'Objective':'Residual norm [m]');
+  line(c,traces[i].map(t=>[t.iteration,t[field]]),opt,palette[i],2.5);
+  for(const t of traces[i]){c.beginPath();c.arc(opt.X(t.iteration),opt.Y(t[field]),3,0,2*Math.PI);c.fillStyle=palette[i];c.fill();}
+  const d=data.diagnostics[i][frame];status.textContent=d?`${d.iterations} update(s) · ${d.converged?'step tolerance reached':'iteration budget reached; convergence not asserted'}`:'Initial prior only; no measurement update';
+ });
+}
+let timer=null;for(const control of [frameInput,selector,limit,objective])control.addEventListener('input',render);
+play.addEventListener('click',()=>{if(timer){clearInterval(timer);timer=null;play.textContent='Play';return;}
+ if(Number(frameInput.value)>=data.frames-1)frameInput.value=1;
+ play.textContent='Pause';timer=setInterval(()=>{if(!root.isConnected||Number(frameInput.value)>=data.frames-1){clearInterval(timer);timer=null;play.textContent='Play';return;}frameInput.value=Number(frameInput.value)+1;render();},__INTERVAL__);
+});render();
+})();
+</script>
+</div>

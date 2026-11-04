@@ -3,3 +3,8 @@ __pycache__/
 *.png
 data/circle_cv_gmm_custom.mat
 .DS_Store
+*.egg-info/
+build/
+dist/
+.venv/
+artifacts/

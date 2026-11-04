@@ -3,6 +3,7 @@ from .factor import Factor, whiten
 
 
 class AutoDiffFactor(Factor):
+	"""Legacy name: central finite differences of an error function e(x)."""
 	def __init__(self, states, z, omega, error_func, delta=1e-4):
 		super().__init__(states, z, omega)
 		self.error_func = error_func
@@ -17,7 +18,7 @@ class AutoDiffFactor(Factor):
 			plus[index] += self.delta
 			minus[index] -= self.delta
 			jacobian[:, index] = (self.error_func(plus, self.z) - self.error_func(minus, self.z)) / (2 * self.delta)
-		self.A, self.b = whiten(jacobian, residual, self.omega)
+		self.A, self.b = whiten(-jacobian, residual, self.omega)
 		return self
 
 __all__ = ["AutoDiffFactor"]

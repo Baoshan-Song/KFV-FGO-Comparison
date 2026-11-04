@@ -20,7 +20,7 @@ class FgoEstimator(Estimator):
 
         is_imitate_kfv = getattr(cfg, "imitate_kfv", False) or getattr(cfg, "imitate_KFV", False)
         if is_imitate_kfv and cfg.window_size != 1:
-            raise ValueError("MATLAB ReFGO compatibility requires window_size=1")
+            raise ValueError("Re-FGO requires window_size=1")
 
         # 1. Prior Factor
         with timing.measure("add_state_factor_ms", 1):
@@ -39,6 +39,12 @@ class FgoEstimator(Estimator):
 
             omega_r = np.linalg.inv(cfg.r) if isinstance(cfg.r, np.ndarray) else np.array([[1.0 / cfg.r]])
 
+        online = np.full((4, n), np.nan)
+        predicted = np.full((4, n), np.nan)
+        covariances = np.full((n, 4, 4), np.nan)
+        online[:, 0], covariances[0] = x0, p0_mat
+        diagnostics = [None]*n
+
         # 2. main loop (2 -> N)
         for i in range(2, n + 1):
             # latest state
@@ -50,6 +56,7 @@ class FgoEstimator(Estimator):
                 new_state_value = motion(current_state.value, cfg.dt, cfg.omega)
                 new_state = State(i, graph.win_size + 1, new_state_value)
 
+                predicted[:, i-1] = new_state_value
                 graph.add_state(new_state)
                 prop_factor = PropagateFactor([current_state, new_state], cfg)
                 graph.add_factor(prop_factor)
@@ -60,7 +67,7 @@ class FgoEstimator(Estimator):
             if is_imitate_kfv:
                 # i-1
                 with timing.measure("marginalize_ms", i):
-                    graph.marginalize(i - 1, matlab_compat=True)
+                    graph.marginalize(i - 1)
 
             # -------------------------------------------------------------
             # C. add all Range factors
@@ -72,10 +79,9 @@ class FgoEstimator(Estimator):
                         "emitter": emitters[:, emitter_idx],
                         "loss_type": cfg.robust_kernel,
                         "loss_delta": cfg.robust_delta,
-                        "autoDiff": getattr(cfg, "autoDiff", False),
+                        "autoDiff": cfg.autodiff,
                     }
-                    range_factor = RangeFactor([new_state], measurement, omega_r,
-                                               matlab_compat=is_imitate_kfv)
+                    range_factor = RangeFactor([new_state], measurement, omega_r)
                     graph.add_factor(range_factor)
 
             # -------------------------------------------------------------
@@ -84,6 +90,11 @@ class FgoEstimator(Estimator):
             # Standard FGO: estimate
             with timing.measure("estimate_ms", i):
                 graph.estimate()
+                online[:, i-1] = new_state.value
+                diagnostics[i-1] = dict(iteration_trace=graph.iteration_trace,
+                                        converged=graph.converged,
+                                        iterations=len(graph.iteration_trace)-1)
+
 
             # -------------------------------------------------------------
             # E. Marginalization after estimation
@@ -93,6 +104,7 @@ class FgoEstimator(Estimator):
                 if cfg.window_size == 1:
                     with timing.measure("marginalize_ms", i):
                         graph.mar_measurements(i)
+                        covariances[i-1] = graph.last_measurement_marginalization["covariance"]
             else:
                 # Standard SW-FGO: Schur complement 
                 # Retire only on overflow. W >= N retains the complete graph.
@@ -105,6 +117,8 @@ class FgoEstimator(Estimator):
 
         result = {
             "X": est_positions,
+            "X_online": online, "X_pred": predicted,
+            "covariances": covariances, "epoch_diagnostics": diagnostics,
             "debug_info": getattr(graph, "residual_norm_all", None)
         }
         if self.profile_stages:

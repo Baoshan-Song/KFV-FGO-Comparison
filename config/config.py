@@ -121,7 +121,7 @@ def load_config(path: str | Path) -> Config:
 
 
 def comparison_config() -> Config:
-    return Config(kfv=FilterConfig(), fgo=FgoConfig(imitate_kfv=True, autodiff=False))
+    return convert_kfv_to_fgo(Config(kfv=FilterConfig()))
 
 
 def sw_fgo_config() -> Config:
@@ -141,6 +141,8 @@ def convert_kfv_to_fgo(config: Config) -> Config:
         f.robust_kernel, f.window_size = "none", 1
     elif k.mode == "rEKF":
         f.max_iteration, f.window_size = 1, 1
-    elif k.mode != "riEKF":
+    elif k.mode == "riEKF":
+        f.window_size = 1
+    else:
         raise ValueError(f"Unsupported KFV mode: {k.mode}")
     return Config(data_mode=config.data_mode, data_path=config.data_path, kfv=k, fgo=f)

@@ -3,6 +3,7 @@ from .AutoDiffFactor import AutoDiffFactor
 
 
 class AutoDiffRobustFactor(AutoDiffFactor):
+	"""Finite differences of a residual transform (not a scalar loss rho)."""
 	def __init__(self, states, z, error_func, kernel_func):
 		super().__init__(states, z, np.eye(1), error_func)
 		self.kernel_func = kernel_func
@@ -17,7 +18,7 @@ class AutoDiffRobustFactor(AutoDiffFactor):
 			minus[index] -= self.delta
 			jacobian[:, index] = (self.kernel_func(self.error_func(plus, self.z)) -
 								  self.kernel_func(self.error_func(minus, self.z))) / (2 * self.delta)
-		self.A, self.b = jacobian, residual
+		self.A, self.b = -jacobian, residual
 		return self
 
 __all__ = ["AutoDiffRobustFactor"]

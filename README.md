@@ -1,225 +1,111 @@
-## KFV v.s FGO Comparison Toolbox
+# KFV–FGO Comparison
 
-[![YouTube Video Demonstration](https://img.youtube.com/vi/_W2NP7gwf7s/maxresdefault.jpg)](https://www.youtube.com/watch?v=_W2NP7gwf7s)
+Python and Google Colab toolbox for comparing Kalman filter variants, recursive factor graph optimization (Re-FGO), and sliding-window FGO.
 
-An interactive MATLAB research and demonstration toolbox accompanying our paper:
-*"Degeneration of sliding-window factor graph optimization into iterated extended Kalman filtering"*
-Baoshan Song, R. Xu, Zhi Zhan, et al.
-[npj Wireless Technology](https://www.nature.com/articles/s44459-026-00069-4), 2, 58 (2026)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Baoshan-Song/KFV-FGO-Comparison/blob/main/KFV-FGO-Colab.ipynb)
 
----
+- **`main`** contains the maintained Python/Colab implementation, continued from `python_colab`.
+- **[`matlab`](https://github.com/Baoshan-Song/KFV-FGO-Comparison/tree/matlab)** preserves the former `main`, including its MATLAB App Designer interface.
+- Paper: [v1](https://arxiv.org/html/2511.00306v1), [v2](https://arxiv.org/html/2511.00306v2), [published article](https://doi.org/10.1038/s44459-026-00069-4).
 
-## 📅 Recent Updates
+The Python implementation follows the **fixed-prediction update and two-stage marginalization in v2**. The audit and finite-iteration convention are explained in [paper alignment](docs/paper_alignment.md). It intentionally corrects the previous MATLAB-compatible recurrence rather than reproducing its numerical errors. This repository demonstrates the range/motion simulation; it does not reproduce the paper's real-world GNSS/INS experiment.
 
-* **Aug 2026:** Published in [*npj Wireless Technology* (Volume 2, Article 58)](https://doi.org/10.1038/s44459-026-00069-4).
-* **Oct 2025:** Initial preprint version ("FGO MythBusters") released on [arXiv](https://arxiv.org/abs/2511.00306v1).
+## Run in Colab
 
----
+Open the badge, run **Setup**, then choose a comparison cell:
 
-## 1. Overview & Core Motivation
+1. KFV versus KFV: EKF, iEKF, rEKF, or riEKF.
+2. KFV versus FGO: **Match filter settings** is enabled by default. Re-FGO receives the same prior, noise, iteration budget and loss. Disable it to explore independent configurations.
+3. FGO versus FGO: compare window size, iteration count and robust loss.
 
-While Factor Graph Optimization (FGO) have become dominant paradigms in modern robotics and multi-sensor navigation, their theoretical relationship with traditional recursive estimators remains obscured by implementation differences. This repository provides an open, transparent, and rigorous MATLAB framework demonstrating how ** sliding window FGO (SW-FGO) algebraically and statistically degenerates into Kalman Filtering Variants (KFVs)** under consistent modeling assumptions, linearizations, and identical noise configurations.
+Setup clones `main` into a fresh temporary directory and installs the Python package. It never deletes an existing project. For a local or Google Drive checkout, disable `USE_GITHUB` and set `LOCAL_PATH`; enable Drive mounting only if needed.
 
-Designed for researchers, educators, and algorithmic developers, this toolbox bridges the conceptual gap between batch factor graph optimization and recursive Bayesian filtering.
+The forms expose Gaussian/GMM noise and anchor geometry. The 105 m and 1000 m anchor radii reproduce the two geometry settings; the GMM preset uses 80% σ = 0.1 m and 20% σ = 10 m, both zero mean. Changing the epoch count also changes the circular motion rate, so the runner uses the dataset's `dt` and `omega` for both estimators. The notebook uses `white_sigma²` as nominal measurement variance. No claim is made that a new random realization reproduces a published numeric table.
 
-## 3. Requirements
+## What the plots mean
 
-* MATLAB R2023b or later (R2024b recommended).
-* App Designer (included with standard MATLAB desktop installations).
-* Core Toolboxes: Statistics and Machine Learning Toolbox. *(Custom optimization algorithms are implemented natively; no external optimization toolbox required).*
+All animated trajectories and reported position metrics use **online** estimates `x[k|k]`, recorded before later epochs can revise the state. Epoch 0 supplies an initial prior and is excluded from measurement residuals and accuracy metrics.
 
----
+| View | Definition | Units |
+|---|---|---|
+| Post-fit residual | `z[k] − h(x[k|k])` | m |
+| Prediction innovation | `z[k] − h(x[k|k−1])` | m |
+| Measurement error | `z[k] − h(x_truth[k])`, simulation diagnostic only | m |
+| Iteration objective | Prior/motion costs plus measurement loss over active factors | dimensionless |
+| Iteration range norm | Euclidean norm of the current epoch's unweighted range residuals | m |
 
-## 4. Repository Structure
+Use the epoch slider to inspect the update path and the shared residual y-limit to zoom. The two panels use identical axes. The iteration display includes the initial iterate and the state after every update. It reports whether the step tolerance was reached; exhausting a budget is **not** reported as convergence. Objective values from different windows/losses are not directly comparable. Undamped Gauss–Newton does not guarantee monotonic descent, and robust optimization need not reduce the unweighted range norm.
 
-* `gui/` — `FGO_KF_Simulator.mlapp` (The main App)
-* `config/` — Configuration scripts (`init_settings_kfv_fgo_comparison.m`, `init_settings_swfgo.m`)
-* `core/` — Core estimators, factor definitions, and filter utilities (`estimator/`, `fgo/`, `filter/`)
-* `data/` — Example datasets (e.g., `circle_cv_gmm_L1.mat`)
-* `results/` — Output trajectory plots and metrics visualizers
+For sliding windows, `result["X"]` is the final stored trajectory (each retired state at its last update), while `result["X_online"]` is causal. `X_pred` and `epoch_diagnostics` support the UI. `covariances` contains the Gaussian or local IRLS covariance for KFV/Re-FGO; SW-FGO entries after initialization are NaN because full-window covariance extraction is not enabled.
 
----
+## Local installation
 
-## 5. Installation & Path Setup
-
-1. Clone or download the project to a local folder.
-2. Open MATLAB and ensure all subfolders are added to your path:
-   ```matlab
-   addpath(genpath('path/to/KFV-FGO-Comparison'));
-   savepath;
-   ```
-
-## 6. Tutorial 1: Non-GUI Command-Line Workflow
-
-### Python port
-
-The non-GUI MATLAB workflows are also available in Python. The GUI is intentionally
-not ported. Install the runtime dependencies and run the examples from the repository root:
+Python 3.10 or later, NumPy and SciPy are required. IPython/Jupyter are optional for the animated notebook.
 
 ```bash
-python3 -m pip install -e .
-python3 example_kfv_fgo_comparison.py
-python3 example_sw_fgo.py
-python3 circle_eval.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[colab]'
+python example_kfv_fgo_comparison.py
+python example_kfv_kfv_comparison.py
+python example_fgo_fgo_comparison.py
+jupyter notebook KFV-FGO-Colab.ipynb
 ```
 
-The Python files follow the original tree: configuration loaders are under
-`config/`, estimator and filter adapters are under `core/`, and datasets remain
-under `data/`. The examples read `config/kfv_fgo_comparison.json` and
-`config/swfgo.json` through the corresponding `init_settings_*.py` functions.
-`load_data` reads the existing `.mat` datasets, while `generate_data` creates
-the circular test data.
-The translated estimators preserve the MATLAB array layout: states are `4 x T`,
-measurements are `M x T`, and emitter positions are `2 x M`.
+A minimal independent equivalence check:
 
-### MATLAB-compatible ReFGO and riEKF
+```python
+import numpy as np
+from kfv_fgo import Config, FilterConfig, convert_kfv_to_fgo
+from kfv_fgo import generate_data, KfvEstimator, FgoEstimator
 
-`python example_kfv_fgo_comparison.py` now compares riEKF with ReFGO using
-`imitate_kfv=True`, `window_size=1`, 10 iterations, and Huber loss on both sides.
-They share the same generated measurements and base measurement variance
-`R=0.01`; the entry retains seed 7 and a 0.2 outlier fraction (mean 0, sigma 10).
-IPython is only needed when explicitly requesting `animate_pair`.
+config = convert_kfv_to_fgo(Config(kfv=FilterConfig(mode="iEKF", max_iteration=10)))
+data = generate_data(num_steps=100, emitter_radius=105, seed=7)
+filtered = KfvEstimator(config, data).run()
+graphed = FgoEstimator(config, data).run()
+np.testing.assert_allclose(filtered["X_online"], graphed["X_online"], atol=1e-8, rtol=0)
+np.testing.assert_allclose(filtered["covariances"], graphed["covariances"], atol=1e-10, rtol=1e-8)
+```
 
-**Mathematical caveat: this mode reproduces the repository's MATLAB rules;
-it is mathematically inaccurate as an implementation of standard fixed-prior,
-fixed-noise-scale Huber MAP estimation.** In particular:
+The graph estimator never calls the filter. `kfv_fgo` exports the same canonical implementations used by the notebook, eliminating the obsolete duplicate implementation.
 
-- MATLAB `margin_factor.m` leaves the prior's A and b unchanged as the state
-  moves. Python now does the same in ReFGO, omitting the fixed-mean prior
-  correction used by standard iterated EKF/Gauss-Newton MAP updates.
-- MATLAB `RangeFactor.m` multiplies the stored information by the current
-  robust weight after every evaluation. Python now accumulates these weights
-  in ReFGO, matching the existing riEKF's cumulative R inflation. Standard
-  Huber IRLS would recompute weights against the unchanged base noise scale.
+## Implementation
 
-These compatibility behaviors are enabled only by the ReFGO estimator path.
-It requires window size 1; larger windows raise a configuration error.
-Ordinary SW-FGO (`imitate_kfv=False`) retains anchored priors, fixed base
-measurement information, and the corrected local QR Schur elimination.
-Low-level factors and marginalization also default to those standard rules.
-The existing Kalman filter implementation and MATLAB sources are unchanged.
+| Location | Role |
+|---|---|
+| `core/filter/` | Independent Kalman-gain updates; fixed prediction within each epoch |
+| `core/fgo/factor_graph.py` | Nonlinear least squares, local state elimination, second-stage QR |
+| `core/fgo/factor/` | Anchored priors, motion and range factors |
+| `core/objective.py` | Fixed-scale robust loss and diagnostics |
+| `experiment_common.py`, `kfv_fgo/comparison.html` | Causal evaluation and interactive plots |
+| `tests/` | Algebraic, estimator and UI regression checks |
+| `scripts/validate_paper.py` | Four-scene numerical comparison and machine-readable report |
 
-Both estimators retain the last iteration's pre-update linearization for
-posterior information, as in MATLAB. ReFGO still solves its own factor graph;
-it does not invoke the filter or copy filter estimates. Trajectory agreement
-demonstrates compatibility with this recurrence, not correctness of the
-standard Huber MAP formulation or exact nonlinear Bayesian equivalence.
-Compatibility factor evaluation is intentionally stateful: extra evaluations
-would advance its weight history. The normal ReFGO solve evaluates each
-measurement factor once per iteration and retires it after the solve.
+Re-FGO requires `imitate_kfv=True`, `window_size=1`. Stage 1 eliminates the previous state **before** adding the current measurement. It uses square-root QR elimination algebraically equivalent to the local Schur complement. Stage 2 performs an actual thin QR of the last solved prior–measurement system and stores its triangular factor, transformed right-hand side, and anchor. Historical nonlinear factors are then retired; the current state remains.
 
-### Optional window benchmark and phase timing (disabled by default)
+Ordinary SW-FGO optimizes first and retires on window overflow. Only factors incident to the removed states enter the local prior, preventing double counting. A window of one alone does not enable the two-stage pipeline.
 
-Normal comparison examples do not run a window sweep or render benchmark charts.
-`FgoEstimator(..., profile_stages=False)` is the default: the phase timers do
-not read a clock, allocate epoch records, or add timing fields to the result.
-The existing example entry points remain ordinary estimator comparisons.
+The `autodiff` JSON/config key is retained for compatibility, but it selects **central finite differences**, not automatic differentiation. The Colab form labels it as a numerical Jacobian. Analytic derivatives are the default.
 
-The previous plotting experiment is retained separately in
-`schur_window_benchmark.py`. Running it without flags only prints help.
-To deliberately repeat the experiment, use:
+## Verification
 
 ```bash
-python schur_window_benchmark.py --run-benchmark --output ../outputs/window-benchmark
-# Additional opt-ins: --plot for charts; --profile-stages for phase timing.
-# To redraw previously saved measurements without running any estimators:
-python schur_window_benchmark.py --plot-only ../outputs/window-benchmark/summary.json
+python -m unittest discover -s tests -v
+python scripts/validate_paper.py --output docs/validation.json
+python scripts/check_notebook.py
 ```
 
-The optional benchmark saves CP95 and complete estimator wall/CPU timings,
-raw CSV samples, trajectories, parameters and source hashes. Windows are
-interleaved across repeated runs; paired policy order alternates. `--cpu`
-optionally pins only the benchmark process. Interrupted wall-time samples
-are flagged and retained. `--plot` requires Matplotlib; `--profile-stages`
-measures add state/factor, estimate, and marginalize separately. Pie charts
-require both options. No generated charts or prior experiment outputs are
-included in the repository.
+[Validation results](docs/validation.json) include all four Gaussian/GMM and anchor-geometry combinations. Checks compare states, covariances and convergence traces using separate filter and graph solvers. Further tests check QR's affine term and constant cost, fixed-prior iteration, stable robust weights, factor signs, causal residuals, local marginalization, and the public import path.
 
-### Corrected local Schur marginalization
+The optional window benchmark remains disabled by default:
 
-Ordinary SW-FGO absorbs only active factors incident to a removed state.
-Pivoted QR eliminates the removed columns; a second QR compresses the prior
-onto the retained boundary states. Unaffected factors remain exactly once,
-avoiding the upstream double counting. This is square-root Schur elimination
-at the chosen linearization point, not exact nonlinear marginalization.
-For the adjacent-state motion and single-state range graph, the prior is at
-most 4 x 4 and does not require a full-window SVD.
-
-Position priors use +I for the A delta = b, x += delta convention. States are
-retired only on window overflow after solving; W=100 keeps the full graph in
-the 100-epoch benchmark. Direct discard uses the same cleanup without a prior.
-Archived state values preserve the final-history CP95 metric. The optional
-benchmark uses outlier_weight=0 and at most 10 GN iterations; its execution,
-plotting and phase timing remain disabled unless explicitly requested.
-
-Run regression tests with `python -m unittest discover -s tests -v`.
-
-### Google Colab
-
-The complete Colab workflow is in [KFV-FGO-Colab.ipynb](KFV-FGO-Colab.ipynb).
-Copy the whole project folder to Google Drive, open this notebook in Colab, and
-set `PROJECT_DIR` to the copied folder if its name or location differs. The
-notebook mounts Drive, copies the project to `/content`, installs dependencies,
-runs compile and smoke checks, executes both examples, creates `run_all.sh`,
-and saves a zip archive under `MyDrive/colab_exports/`. The MATLAB GUI is not
-started in Colab.
-
-For batch processing, cluster environments, or headless script debugging, you can bypass the graphical interface and run comparisons directly via MATLAB scripts.
-
-1. **Open MATLAB** and navigate to your local root directory containing the repository.
-2. **Configure Experiment Settings:** Edit `config/init_settings_kfv_fgo_comparison.m` or `config/init_settings_swfgo.m` to adjust state noise, initial covariance (\$P\_0\$), process noise (\$Q\$), and robust kernels.
-3. **Run KFV vs. FGO Comparison Script:**
-4. **Run Sliding-Window FGO Script:**
-5. **Inspect Outputs:** The script automatically computes RMSE metrics, saves workspace variables, and outputs generated trajectory and error plots directly to your MATLAB figure windows.
-
----
-
-## 7. Tutorial 2: Interactive GUI Workflow (`FGO_KF_Simulator`)
-
-For visual parameter tuning and real-time comparative analysis, use the interactive App Designer interface.
-
-1. **Launch the App:** Open MATLAB, locate `gui/FGO_KF_Simulator.mlapp`, and open it in ​**App Designer**​, or type `FGO_KF_Simulator` in the MATLAB Command Window.
-2. **Select Dataset:** Click the folder button (​**📁**​) on the top-left control panel to load a `.mat` dataset (e.g., `data/circle_cv_gmm_L1.mat`).
-3. **Configure Tab 1 (KFV vs. FGO Comparison):**
-   * Select your desired filter variant from the dropdown (EKF, IEKF, REKF, RIEKF).
-   * Toggle robust loss functions (Huber, Cauchy) and adjust tuning parameters such as window size and iteration caps.
-   * Click the green Run button (​**▶**​) to execute the pipeline.
-4. **Configure Tab 2 (SW FGO Simulation):**
-   * Switch to the **SW FGO Simulation** tab to evaluate sliding-window optimization properties independently.
-   * Adjust window lengths and maximum iterations to analyze the accuracy-versus-computational cost tradeoff.
-5. **Export Parameters & Results:** Click the gear icon (​**⚙**​) to save your active experiment configuration to a `.mat` file for exact manuscript figure replication.
-
----
-
-## 8. Data Format
-
-A minimal dataset (MAT-file) should include:
-
-* `true_positions`: \$2 \\times T\$ ground truth trajectory.
-* For KFV tab: `position_measurements` or `pdr_positions`.
-* For FGO demos: `toa_measurements` (\$M \\times T\$) and `emitter_positions` (\$2 \\times M\$).
-* Use `data/circle_cv_gmm_L1.mat` as a default starting reference.
-
----
-
-## 9. Citation
-
-If you find this repository helpful in your academic research, please cite our paper:
-
-```
-@article{song2026degeneration,
-  title={Degeneration of sliding-window factor graph optimization into iterated extended Kalman filtering},
-  author={Song, Baoshan and Xu, R. and Zhan, Zhi and others},
-  journal={npj Wireless Technology},
-  volume={2},
-  pages={58},
-  year={2026},
-  doi={10.1038/s44459-026-00069-4}
-}
+```bash
+python schur_window_benchmark.py --run-benchmark --output artifacts/window-benchmark
+# Add --plot for figures and --profile-stages for phase timers.
 ```
 
----
+That benchmark retains its legacy final-history accuracy metric; it is separate from the Colab online metrics. Timings include the diagnostic bookkeeping currently enabled by each estimator and are not a reproduction of published timing tables.
 
-## 10. License
+## License
 
-The software package is distributed under GPL v3 license. Users are freedom to modify and distribute the software as they see fit, provided that they adhere to the terms and conditions set forth in the license. This includes the ability to incorporate or use the comparison codes with other software, whether for non-commercial or commercial purposes. However, any modifications or derivative works must also be distributed under the GPL v3 license, ensuring that the software remains free and accessible to all users.
+GNU General Public License v3, as specified by the original project. Modified and redistributed versions remain subject to its terms.

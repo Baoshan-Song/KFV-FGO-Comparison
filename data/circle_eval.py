@@ -37,7 +37,7 @@ def generate_data(num_steps=100, dt=1.0, radius=100.0, num_emitters=6,
 
     rng = np.random.default_rng(seed)
     omega = 2 * np.pi / (num_steps * dt)
-    angles = np.linspace(0, 2 * np.pi, num_steps)
+    angles = omega * np.arange(num_steps) * dt
     positions = radius * np.vstack((np.cos(angles), np.sin(angles)))
     velocities = omega * radius * np.vstack((-np.sin(angles), np.cos(angles)))
     emitter_angles = np.linspace(0, 2 * np.pi, num_emitters, endpoint=False)

@@ -14,6 +14,9 @@ class KfvEstimator(Estimator):
 		estimates = np.zeros((4, count))
 		estimates[:, 0] = state
 		debug_info = [None] * count
+		predicted = np.full_like(estimates, np.nan)
+		covariances = np.full((count, 4, 4), np.nan)
+		covariances[0] = covariance
 		methods = {"EKF": ekf, "iEKF": miekf, "rEKF": rekf, "riEKF": rmiekf}
 		if cfg.mode not in methods:
 			raise ValueError(f"Unsupported KFV mode: {cfg.mode}")
@@ -26,9 +29,11 @@ class KfvEstimator(Estimator):
 			elif cfg.mode == "rEKF": result = methods[cfg.mode](*arguments, cfg.robust_kernel, cfg.robust_delta)
 			else: result = methods[cfg.mode](*arguments, cfg.max_iteration, cfg.threshold_iteration,
 											 cfg.robust_kernel, cfg.robust_delta)
-			state, covariance, _, _, debug_info[index] = result
+			state, covariance, predicted[:, index], _, debug_info[index] = result
+			covariances[index] = covariance
 			estimates[:, index] = state
-		return {"X": estimates, "debug_info": debug_info}
+		return {"X": estimates, "X_online": estimates.copy(), "X_pred": predicted,
+				"covariances": covariances, "debug_info": debug_info, "epoch_diagnostics": debug_info}
 
 	def convert_kfv_config_to_fgo(self):
 		return convert_kfv_to_fgo(self.config)
