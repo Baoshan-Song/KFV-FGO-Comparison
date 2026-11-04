@@ -1,0 +1,7 @@
+# Preserve recorded data byte-for-byte across Windows/Linux checkouts.
+# RINEX and ground truth contain meaningful fixed-width padding.
+data/urban_nav_deep/* -text -diff -whitespace linguist-vendored
+data/*.mat binary linguist-vendored
+tests/fixtures/*.mat binary linguist-generated
+tests/fixtures/*.npz binary linguist-generated
+tests/fixtures/matlab_provenance.json linguist-generated

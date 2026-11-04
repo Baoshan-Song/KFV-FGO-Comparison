@@ -38,4 +38,12 @@ The Gaussian fixed-prior correspondence is the primary verification target. Robu
 
 The old `autoDiff` option actually used finite differences and was ignored by one caller because of a naming mismatch. It now works and is labelled correctly. Generic finite-difference factors and the displacement factor also had inconsistent residual/Jacobian signs; these are corrected and tested.
 
-The generated circular dataset now uses `angle[k] = omega * k * dt`, avoiding the duplicated endpoint and inconsistent angular interval. The motion function retains the existing first-order discretization, so truth/model discretization error still exists. Loaded MAT files are not rewritten. This is a simulation consistency check, not a rerun of the paper's GNSS/INS experiments or a claim to reproduce every published result.
+The generated circular dataset now uses `angle[k] = omega * k * dt`, avoiding the duplicated endpoint and inconsistent angular interval. The motion function retains the existing first-order discretization, so truth/model discretization error still exists. Loaded MAT files are not rewritten. The simulation check is distinct from the real-data workflow described below.
+
+## Real GNSS/INS contribution
+
+PR #5 supplies RINEX/Xsens readers, a ten-state pseudorange/IMU model, UTC alignment and saved MATLAB references. These inputs now run through the same canonical graph as the simulation. The real filter uses a gain update with a fixed prediction and recomputes nominal elevation/SNR variances and robust weights at each linearization. Re-FGO independently assembles these observation factors and performs both QR marginalizations. No public import path retains the old filter shortcut or frozen-residual prior.
+
+The contribution's first-valid-sample Euler propagation, supplied AHRS attitude, discrete process covariance and observation corrections are retained. This is not a full strapdown INS or RTK implementation. Model probes and the one-update EKF still reproduce their saved MATLAB checks. Legacy tests requiring filter delegation, an unanchored frozen prior or the old sliding-window objective were replaced with independent state/covariance and causal-residual checks, rather than preserving those bugs. Saved references and provenance remain unchanged.
+
+[Real validation](real_validation.json) reports all four matched pairs over 438 epochs. The [Colab guide](../README.md) documents model limits and parameter meanings. Real GUI accuracy uses interpolated reference ECEF positions at overlapping UTC times, with no fitted spatial alignment. Article figures use the same viewer and online histories.

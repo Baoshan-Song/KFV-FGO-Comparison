@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: "Please cite the companion paper for the Re-FGO theory and identify the software version/commit for reproduced results."
+title: "KFV-FGO Comparison: Python/Colab toolbox"
+type: software
+authors:
+  - family-names: Song
+    given-names: Baoshan
+  - name: KFV-FGO Comparison contributors
+version: 0.3.0
+date-released: 2026-11-04
+license: GPL-3.0
+repository-code: https://github.com/Baoshan-Song/KFV-FGO-Comparison
+url: https://colab.research.google.com/github/Baoshan-Song/KFV-FGO-Comparison/blob/main/KFV-FGO-Colab.ipynb
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Song
+      given-names: Baoshan
+    - family-names: Xu
+      given-names: Ruijie
+    - family-names: Zhan
+      given-names: Zhi
+    - family-names: Hsu
+      given-names: Li-Ta
+  title: "Degeneration of sliding-window factor graph optimization into iterated extended Kalman filtering"
+  journal: npj Wireless Technology
+  volume: 2
+  issue: 1
+  start: 58
+  year: 2026
+  doi: 10.1038/s44459-026-00069-4

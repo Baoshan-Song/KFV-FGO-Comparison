@@ -1,3 +1,4 @@
+from time import perf_counter
 import numpy as np
 from .Estimator import Estimator
 from ..filter import ekf, miekf, rekf, rmiekf
@@ -6,6 +7,10 @@ from config.config import convert_kfv_to_fgo, motion, motion_jacobian, range_mea
 
 class KfvEstimator(Estimator):
 	def run(self):
+		if hasattr(self.data, "get_measurement"):
+			from .real_data import run_kfv
+			return run_kfv(self.config, self.data)
+		started = perf_counter()
 		cfg = self.config.kfv
 		count = self.data["num_steps"]
 		emitters = self.data["emitter_positions"]
@@ -32,8 +37,9 @@ class KfvEstimator(Estimator):
 			state, covariance, predicted[:, index], _, debug_info[index] = result
 			covariances[index] = covariance
 			estimates[:, index] = state
-		return {"X": estimates, "X_online": estimates.copy(), "X_pred": predicted,
+		result = {"X": estimates, "X_online": estimates.copy(), "X_pred": predicted,
 				"covariances": covariances, "debug_info": debug_info, "epoch_diagnostics": debug_info}
+		return self._simulation_output(result, started)
 
 	def convert_kfv_config_to_fgo(self):
 		return convert_kfv_to_fgo(self.config)

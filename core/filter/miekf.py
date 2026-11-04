@@ -60,3 +60,53 @@ def miekf(x_prev, p_prev, dt, omega, f, F, Q, measurements, emitters, h, H,
                            emitters, h, H, r_base, max_iter, threshold)
 
 __all__ = ['miekf']
+
+
+def observation_update(x_pred, p_pred, observe, max_iter, threshold,
+                       loss_type='none', delta=2.):
+    """Gain update for a state-dependent, diagonal observation covariance.
+
+    observe(x) returns z-h(x), H, R and observation IDs. The predicted
+    Gaussian is fixed, just as in iterated_update. No graph solver is used.
+    """
+    x = x_pred.copy()
+    identity = np.eye(len(x))
+    prior_root = np.linalg.cholesky(p_pred)
+    trace = []
+
+    def record(value, iteration):
+        raw, _, covariance, ids = observe(value)
+        prior = np.linalg.solve(prior_root, value-x_pred)
+        trace.append(dict(iteration=iteration, state=value.copy(),
+            measurement_residual_norm_m=float(np.linalg.norm(raw)),
+            objective=.5*float(prior@prior) + loss_cost(
+                raw/np.sqrt(np.diag(covariance)), loss_type, delta)))
+
+    record(x, 0)
+    converged = False
+    for iteration in range(1, max_iter+1):
+        linearization = x.copy()
+        residual, jacobian, covariance, ids = observe(x)
+        weights = robust_weights(residual/np.sqrt(np.diag(covariance)), loss_type, delta)
+        root = np.sqrt(weights)
+        weighted_h = root[:, None]*jacobian
+        innovation = weighted_h @ p_pred @ weighted_h.T + covariance
+        gain = np.linalg.solve(innovation, weighted_h @ p_pred).T
+        x_next = x_pred + gain @ (root*(residual + jacobian@(x-x_pred)))
+        correction = identity-gain@weighted_h
+        p_est = correction@p_pred@correction.T + gain@covariance@gain.T
+        p_est = .5*(p_est+p_est.T)
+        step = x_next-x
+        x = x_next
+        record(x, iteration)
+        converged = np.linalg.norm(step)/len(x) < threshold
+        if converged:
+            break
+    postfit, _, _, post_ids = observe(x)
+    prefit, _, _, pre_ids = observe(x_pred)
+    return x, p_est, dict(iteration_trace=trace, converged=converged,
+        iterations=iteration, linearization_point=linearization,
+        jacobian_all=jacobian, kalman_gain=gain, innovation_covariance=innovation,
+        measurement_weights=weights, residual=postfit, prefit_residual=prefit,
+        postfit_residual=postfit, prefit_ids=pre_ids, postfit_ids=post_ids,
+        residual_norm_all=[t['measurement_residual_norm_m'] for t in trace])

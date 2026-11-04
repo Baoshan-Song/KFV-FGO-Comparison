@@ -128,6 +128,9 @@ def run_pair(data, first, second):
   }
 
 def comparison_payload(experiment):
+  if hasattr(experiment["data"], "get_measurement"):
+    from real_experiment import real_payload
+    return real_payload(experiment)
   data, estimators = experiment["data"], experiment["estimators"]
   results = [item["result"] for item in estimators]
   count = min(data["true_positions"].shape[1], *(r["X_online"].shape[1] for r in results))

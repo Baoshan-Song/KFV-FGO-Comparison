@@ -1,3 +1,4 @@
+from time import perf_counter
 import numpy as np
 from .Estimator import Estimator
 from ..fgo.factor_graph import FactorGraph
@@ -12,6 +13,10 @@ class FgoEstimator(Estimator):
         self.profile_stages = profile_stages
 
     def run(self):
+        if hasattr(self.data, "get_measurement"):
+            from .real_data import run_fgo
+            return run_fgo(self.config, self.data)
+        started = perf_counter()
         cfg = self.config.fgo
         n = self.data["num_steps"]
         timing = StageTiming(self.profile_stages, n)
@@ -124,7 +129,7 @@ class FgoEstimator(Estimator):
         if self.profile_stages:
             result["stage_timings_ms"] = timing.totals()
             result["stage_timings_by_epoch_ms"] = timing.rows
-        return result
+        return self._simulation_output(result, started)
 
 
 

@@ -1,0 +1,80 @@
+{
+  "dataset": "urban_nav_deep",
+  "epochs": 438,
+  "state_order": "ECEF position (m), ECEF velocity (m/s), body accel bias (m/s^2), receiver clock bias (m)",
+  "solvers": "Independent gain update and graph QR; no filter dispatch from FGO",
+  "modes": {
+    "EKF": {
+      "max_position_difference_m": 7.736146322375233e-09,
+      "max_abs_difference_per_state": [
+        4.6566128730773926e-09,
+        7.450580596923828e-09,
+        4.6566128730773926e-09,
+        4.211758941607968e-09,
+        2.7891990939110656e-09,
+        3.126025660549203e-09,
+        1.6740775467672652e-09,
+        4.466054743098366e-09,
+        1.562073308097884e-09,
+        6.51925802230835e-09
+      ],
+      "max_abs_covariance_difference": 1.1050724424421787e-07,
+      "state_check_atol": 2e-06,
+      "covariance_check_atol": 2e-06
+    },
+    "iEKF": {
+      "max_position_difference_m": 7.3627514302925655e-09,
+      "max_abs_difference_per_state": [
+        4.190951585769653e-09,
+        6.51925802230835e-09,
+        4.190951585769653e-09,
+        4.234187223062236e-09,
+        1.3802557652375924e-08,
+        4.157208799426826e-09,
+        1.662997824508466e-09,
+        4.475428715692902e-09,
+        7.074508090454401e-09,
+        5.587935447692871e-09
+      ],
+      "max_abs_covariance_difference": 1.104490365833044e-07,
+      "state_check_atol": 2e-06,
+      "covariance_check_atol": 2e-06
+    },
+    "rEKF": {
+      "max_position_difference_m": 6.969379981558661e-09,
+      "max_abs_difference_per_state": [
+        2.3283064365386963e-09,
+        6.51925802230835e-09,
+        3.725290298461914e-09,
+        2.348183869571585e-09,
+        1.1585363779431646e-08,
+        4.106919249124985e-09,
+        1.4234097719701475e-09,
+        1.4983037033289293e-09,
+        5.651177303889199e-09,
+        5.820766091346741e-09
+      ],
+      "max_abs_covariance_difference": 1.0963412933051586e-07,
+      "state_check_atol": 2e-06,
+      "covariance_check_atol": 2e-06
+    },
+    "riEKF": {
+      "max_position_difference_m": 1.3211985080606404e-08,
+      "max_abs_difference_per_state": [
+        7.450580596923828e-09,
+        9.313225746154785e-09,
+        9.313225746154785e-09,
+        3.9749892266627285e-09,
+        8.696311226685793e-09,
+        1.1244509323660168e-08,
+        3.315950181104199e-09,
+        3.3863324207476673e-09,
+        6.488907189350357e-09,
+        1.1641532182693481e-08
+      ],
+      "max_abs_covariance_difference": 1.1007068678736687e-07,
+      "state_check_atol": 2e-06,
+      "covariance_check_atol": 2e-06
+    }
+  }
+}

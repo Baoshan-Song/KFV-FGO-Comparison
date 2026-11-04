@@ -84,6 +84,11 @@ class FactorGraph:
                                        factor.z["loss_type"], factor.z["loss_delta"])
                 if factor.states[0] is self.active_states[-1]:
                     ranges.append(raw)
+            elif hasattr(factor, "observation_diagnostic"):
+                cost, raw = factor.observation_diagnostic()
+                objective += cost
+                if factor.states[0] is self.active_states[-1]:
+                    ranges.extend(raw)
             else:
                 residual = factor.evaluate().b
                 objective += .5*float(residual @ residual)
