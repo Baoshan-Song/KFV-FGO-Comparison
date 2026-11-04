@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kfv-fgo-comparison"
-version = "0.3.0"
+version = "0.4.0"
 description = "Python port of the KFV/FGO comparison toolbox"
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "scipy>=1.10"]
@@ -21,4 +21,4 @@ py-modules = ["experiment_common", "real_experiment", "schur_window_benchmark"]
 include = ["kfv_fgo*", "core*", "config*", "data*"]
 
 [tool.setuptools.package-data]
-kfv_fgo = ["comparison.html", "config/*.json", "data/*.mat", "data/urban_nav_deep/*", "LICENSE", "THIRD_PARTY_NOTICES.md"]
+kfv_fgo = ["comparison.html", "config/*.json", "data/*.mat", "data/urban_nav_deep/*", "data/urban_nav_medium/*", "data/urban_nav_harsh/*", "LICENSE", "THIRD_PARTY_NOTICES.md"]

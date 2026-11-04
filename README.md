@@ -10,7 +10,7 @@ Compare Kalman filter variants (KFV), recursive factor graph optimization (Re-FG
 
 1. Click **Open in Colab** above. Sign in to Google if Colab asks.
 2. Run **Setup** once. It prepares the cloud session and loads the code automatically. Leave its defaults unchanged.
-3. Run a comparison cell. For the real-data example, go directly to **4. Real GNSS/INS** and choose a preset. The bundled data loads automatically, with no upload or separate download step.
+3. Run a comparison cell. For the real-data example, go directly to **4. Real GNSS/INS** and choose a preset, or run **5. Inside GNSS** for the article’s two three-method comparisons. The selected medium, deep or harsh recording loads automatically, with no upload or separate download step.
 
 You can rerun just the comparison cell after changing its parameters. There is no need to rerun Setup for each experiment. The runtime's stop button interrupts a calculation. Save results before the Colab session expires.
 
@@ -44,7 +44,8 @@ The method selectors below the preset apply **only to Custom**. Other presets se
 
 | Form parameter | Meaning and effect |
 |---|---|
-| `data_directory` | Blank uses the bundled UrbanNav excerpt. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` in the supplied format. Optional `gt.txt` enables reference errors. A Drive path needs Drive mounted in Setup. |
+| `dataset` | Select `medium` (the article figures), `deep`, or `harsh` (additional table results). All three are bundled. |
+| `data_directory` | Blank uses the selected UrbanNav recording. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` (or the supplied lossless `xsens_imu.npz`) in the supplied format. Optional `gt.txt` enables reference errors. A Drive path needs Drive mounted in Setup. |
 | `iterations` | Maximum nonlinear updates per epoch. Used by iEKF/riEKF and the corresponding graph mode. EKF/rEKF always perform one update. More iterations do not add new measurements. |
 | `robust_kernel` | `none` keeps ordinary least squares. `huber`, `cauchy`, and `tukey` reduce the influence of large **whitened** residuals. Non-robust filter modes ignore this setting. |
 | `robust_delta` | Dimensionless scale of the robust loss. A smaller value downweights more measurements. It is not a residual threshold in metres. |
@@ -65,11 +66,11 @@ The real model uses elevation and SNR to form a separate pseudorange variance fo
 
 ### What this real-data experiment estimates
 
-The supplied excerpt contains **438 GNSS epochs** and 437 reference-overlap epochs. Its ten states are ECEF position (3), ECEF velocity (3), body accelerometer bias (3), and receiver clock bias (1). Pseudoranges are corrected using broadcast satellite orbits/clocks, group delay, ionosphere and troposphere models through pyRTKLIB.
+The medium recording contains 657 GNSS epochs, deep 438, and harsh 3348. With the initial prior excluded and no reference extrapolation, 655, 436 and 2311 epochs respectively can be scored. The other update epochs remain in the solver and runtime records. The common ten states are ECEF position (3), ECEF velocity (3), body accelerometer bias (3), and receiver clock bias (1). Pseudoranges are corrected using broadcast satellite orbits/clocks, group delay, ionosphere and troposphere models through pyRTKLIB.
 
 Attitude comes from recorded IMU/AHRS quaternions. Propagation retains the contributor's first-valid-sample Euler discretization over each GNSS interval, with constant per-interval `Q`. It does **not** integrate all high-rate IMU samples, estimate attitude/gyro bias, or resolve carrier-phase ambiguities. This is a controlled pseudorange/IMU estimator comparison, not an RTK or full strapdown INS implementation. The four-satellite minimum is a check in this supplied observation model.
 
-Truth is used only for evaluation. It is interpolated in ECEF at overlapping UTC timestamps, without extrapolation or fitted trajectory alignment. Errors and exported viewer trajectories use causal states from the current update, including for SW-FGO.
+Truth is used only for evaluation. It is interpolated in ECEF at overlapping UTC timestamps, without extrapolation or fitted trajectory alignment. Errors and exported viewer trajectories use causal states from the current update, including for SW-FGO. The initial prior is excluded from error statistics. In medium, the raw recording has a 131 s GNSS gap between elapsed 557 and 688 s. Plots break at this gap, and time plots shade it. No simulated outage is added.
 
 ## Simulation parameters
 
@@ -92,7 +93,7 @@ Cells 1–3 retain the adjustable range/motion simulation.
 
 ## Read the plots and export results
 
-Blue and red distinguish the methods. Black squares mark reference positions, crosses mark filters and open circles mark graphs. Matched solutions intentionally overlap; no artificial separation is added.
+Blue and red distinguish paired methods. The article comparison adds green for SW-FGO-w20. Black squares mark reference positions, crosses mark filters and open circles mark graphs. Matched solutions intentionally overlap; no artificial separation is added.
 
 | Viewer tab/control | What it shows |
 |---|---|
@@ -102,6 +103,8 @@ Blue and red distinguish the methods. Black squares mark reference positions, cr
 | **Truth measurement error** | Simulation only. It cannot be inferred from real reference positions alone because the true receiver clock and propagation errors are unknown. |
 | **Iteration path** | Actual states and residual norm or objective after each iteration, including iteration 0. Real data shows local ENU paths; synthetic emitter contours are shown only in simulation. |
 | **Solver difference** | Real-data 3D separation between the two online solutions. This is not error against truth. |
+| **Runtime boxplot** | Article cell only. Two groups of measured per-epoch durations, with a logarithmic time axis. Boxes show median and interquartile range, whiskers use 1.5 IQR, and circles retain outlying timings. |
+| **Comparison group** | Article cell only. Switch between IEKF / Re-FGO / SW-FGO-w20 and R-IEKF / R-Re-FGO / R-SW-FGO-w20. |
 | **Used satellites** | Real pseudoranges actually entering each update. A downweighted range still counts as used. |
 | **Epoch / Detail / Play** | Choose the end epoch and length of the enlarged interval, or animate it. These controls do not change the calculation. |
 | **Save SVG** | Export exactly the visible figure as editable vector graphics for an article. |
@@ -109,13 +112,22 @@ Blue and red distinguish the methods. Black squares mark reference positions, cr
 
 Epoch 0 is the initial prior, not a measurement update. A raw residual norm can grow when a robust method stops following an outlying range. Interpret it alongside position error and the used-satellite count. The full objective includes prior, motion and robust measurement costs. Objective values from different windows or losses are not directly comparable. The GUI distinguishes meeting the step tolerance from simply exhausting the iteration budget.
 
-The real-data cell also writes `artifacts/real-colab/` with a standalone HTML viewer, configuration/accuracy JSON, UTC-tagged state CSVs, and NPZ files containing states, predictions and covariances. Download these through Colab's Files panel. `X_online` is causal. `X` is the graph's final stored history. SW-FGO covariance extraction is not enabled; its post-initial covariance entries are NaN, rather than fabricated uncertainty values.
+The real-data cell also writes `artifacts/real-colab/` with a standalone HTML viewer, configuration/accuracy JSON, UTC-tagged state CSVs, and NPZ files containing states, predictions, covariances and measured per-epoch times. Download these through Colab's Files panel. `X_online` is causal. `X` is the graph's final stored history. SW-FGO covariance extraction is not enabled; its post-initial covariance entries are NaN, rather than fabricated uncertainty values.
 
 ## Inside GNSS companion and reproduction
 
-The article's real-data figures use the **same presets, payload and SVG renderer as Colab**. To recreate them, choose the preset stated in a caption, set its epoch/detail controls, select the named tab, and click Save SVG. The runtime numbers printed by Colab measure that session and include diagnostic collection; they will vary with hardware.
+Run **5. Inside GNSS** after Setup. It computes two three-method comparisons on the same recording:
 
-For developers, `python scripts/insidegnss_real.py` runs all four real-data presets and saves HTML/JSON/CSV/NPZ outputs to `artifacts/insidegnss-real`. There is no separate plotting model or hidden reference alignment for article figures. The older synthetic figure script remains available as an optional simulation tool, but those figures are not the current article's results.
+- **Non-robust:** IEKF, Re-FGO, SW-FGO-w20.
+- **Huber:** R-IEKF, R-Re-FGO, R-SW-FGO-w20.
+
+The dataset selector defaults to medium. Both groups allow up to five updates per epoch. The robust group uses Huber scale 1 on whitened residuals. SW-FGO retains 20 states after each solve. Initialization, observations, process noise and reference evaluation are otherwise identical. `R-IEKF` is the paper label for the code's `riEKF`; `IEKF` is `iEKF`.
+
+Choose a group, then use **Trajectory** or **Position error**. For medium, **Scene 1 / 2 enlargements** shows the complete recording with two street-region details from the original scene illustration. The first passages at 1–45 s and 279–327 s are defined by the street regions and shared by all methods. Both groups use identical intervals and axis limits. Uncheck this control to choose a manual Epoch / Detail interval. **Residual norm** and **Runtime boxplot** display both groups together. The residual plot offers linear and logarithmic axes; the article uses the latter to retain large peaks while showing ordinary epochs clearly. Click **Save SVG** to export the exact vector figure. **Save data** includes all six methods, even when only one group is visible.
+
+Each timing box contains one measured duration per update (656 for medium, 437 for deep, 3347 for harsh) from a serial full recording after a discarded 25-epoch warmup. Each duration includes propagation, optimization, diagnostic collection and marginalization. Loading, reference evaluation and rendering are excluded. The initial prior is not an update. The initial window-fill epochs remain in the distribution. Colab measures its own hardware, so its timing values will differ from the paper's local run. No equal runtime or accuracy ranking is imposed.
+
+For developers, `python scripts/insidegnss_article.py --scene medium` runs exactly this six-method experiment (also accepts `deep` or `harsh`) and saves HTML/JSON/CSV/NPZ outputs under `artifacts/insidegnss-real/article-medium-w20`. The NPZ and viewer JSON contain the per-epoch timing samples. `scripts/insidegnss_real.py` retains the four pair-preset checks. All article result figures share Colab's payload and SVG renderer. The original conceptual and experimental-scene illustrations are retained in the article separately.
 
 ## Supporting papers and citation
 
@@ -141,7 +153,7 @@ Please cite the theoretical paper when using the Re-FGO comparison. If reporting
   title = {{KFV-FGO Comparison}: Python/Colab toolbox},
   year = {2026},
   howpublished = {\url{https://github.com/Baoshan-Song/KFV-FGO-Comparison}},
-  note = {Version 0.3.0}
+  note = {Version 0.4.0}
 }
 ```
 

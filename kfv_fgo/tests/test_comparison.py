@@ -168,6 +168,11 @@ def test_real_independent_qr_equivalence(real_data, mode, monkeypatch):
     if mode == "EKF":
         np.testing.assert_allclose(k["X"], REFERENCE["real_EKF_kfv"], rtol=0, atol=1e-6)
     for result in (k,f):
+        timings = result['epoch_runtime_ms']
+        assert len(timings) == real_data.num_steps
+        assert np.isnan(timings[0])
+        assert np.all(np.isfinite(timings[1:]) & (timings[1:] > 0))
+        assert np.sum(timings[1:]) <= result['runtime_seconds']*1000
         for i in (1,100,437):
             residual,_,_,ids = real_data.linearize(result["X_online"][:,i],i)
             record=result["epoch_diagnostics"][i]
@@ -195,6 +200,48 @@ def test_missing_files_fail_explicitly(tmp_path):
     cfg.data_path = str(tmp_path)
     with pytest.raises(FileNotFoundError, match="f9p_navi.obs"):
         GnssImuDataset(cfg)
+
+
+def test_article_groups_isolate_loss_and_window():
+    from real_experiment import article_methods
+    methods = article_methods()
+    assert len(methods) == 6
+    for group,mode,kernel in [(methods[:3],'iEKF','none'),(methods[3:],'riEKF','huber')]:
+        k,re,sw=[m['config'] for m in group]
+        assert k.kfv.mode==mode
+        assert re.fgo.imitate_kfv and re.fgo.window_size==1
+        assert not sw.fgo.imitate_kfv and sw.fgo.window_size==20
+        for cfg in (k.kfv,re.fgo,sw.fgo):
+            assert cfg.max_iteration==5 and cfg.robust_kernel==kernel
+            np.testing.assert_array_equal(cfg.q,k.kfv.q)
+            np.testing.assert_array_equal(cfg.p0,k.kfv.p0)
+
+
+def test_compact_imu_preserves_csv_values(tmp_path):
+    from kfv_fgo.data.gnss_ins import ImuData
+    values=np.zeros((5,32))
+    values[:,0]=np.array([1,2,2,3,4])*1e9
+    values[:,7]=1
+    values[:,29:32]=np.arange(15).reshape(5,3)/10
+    csv=tmp_path/'imu.csv';npz=tmp_path/'imu.npz'
+    np.savetxt(csv,values,delimiter=',',header='columns',comments='')
+    np.savez_compressed(npz,time_s=values[:,0]*1e-9,quat_xyzw=values[:,4:8],acc_mps2=values[:,29:32])
+    a,b=ImuData(csv),ImuData(npz)
+    for key in ('time','quat','acc'):np.testing.assert_array_equal(getattr(a,key),getattr(b,key))
+    for key in ('time','quat','acc'):np.testing.assert_array_equal(a.interval(1.5,3.5)[key],b.interval(1.5,3.5)[key])
+
+
+def test_real_viewer_excludes_initial_prior(real_data):
+    from copy import copy
+    from real_experiment import preset_pair,run_real_pair,real_payload
+    short=copy(real_data);short.num_steps=4;short.timestamps=real_data.timestamps[:4]
+    result=run_real_pair(short,*preset_pair('Matched EKF'))
+    payload=real_payload(result)
+    for item,err in zip(result['estimators'],payload['errors']):
+        assert not item['errors']['valid'][0]
+        assert item['accuracy']['initial_prior_excluded']
+        assert item['accuracy']['evaluated_epochs']==3
+        assert err['horizontal'][0] is None
 
 
 def test_insufficient_satellites_has_epoch_context(real_data):

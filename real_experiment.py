@@ -49,16 +49,56 @@ def clean(value):
     return value
 
 
+def article_methods(base=None):
+    """Six methods with shared settings, in non-robust then Huber order."""
+    base = real_config() if base is None else base
+    methods = []
+    for robust in (False, True):
+        mode = 'riEKF' if robust else 'iEKF'
+        names = ('R-IEKF', 'R-Re-FGO', 'R-SW-FGO-w20') if robust else ('IEKF', 'Re-FGO', 'SW-FGO-w20')
+        for solver, name in zip((mode, 'Re-FGO', 'SW-FGO'), names):
+            item = method(solver, base, iterations=5, kernel='huber' if robust else 'none',
+                          delta=1., window=20, recursive_mode=mode)
+            item['name'] = name
+            methods.append(item)
+    return methods
+
+
 def run_real_pair(data, first, second):
+    return run_real_methods(data, (first, second))
+
+
+def run_article_comparison(data, base=None, warmup=True):
+    """Run serially. Warm-up states are discarded before each full recording."""
+    from copy import copy
+    methods = article_methods(base)
+    if warmup:
+        short = copy(data)
+        short.num_steps = min(25, data.num_steps)
+        short.timestamps = data.timestamps[:short.num_steps].copy()
+        print('Warming up all six solvers on the first 25 epochs', flush=True)
+        for item in methods:
+            (KfvEstimator if item['kind']=='kfv' else FgoEstimator)(item['config'],short).run()
+    experiment = run_real_methods(data, methods)
+    experiment['groups'] = [dict(name='Non-robust',indices=[0,1,2]),
+                            dict(name='Huber',indices=[3,4,5])]
+    return experiment
+
+
+def run_real_methods(data, methods):
     truth_path=data.path/'gt.txt'
     truth=load_ground_truth(truth_path) if truth_path.exists() else None
     estimators=[]
-    for item in (first,second):
+    for item in methods:
         print('Running',item['name'],flush=True)
         result=(KfvEstimator if item['kind']=='kfv' else FgoEstimator)(item['config'],data).run()
         # All viewer metrics are causal, including SW-FGO.
-        causal={**result,'X':result['X_online']}
+        causal={**result,'X':result['X_online'][:,1:],'timestamps':result['timestamps'][1:]}
         report, errors = evaluate_ground_truth(causal,truth) if truth else (None,None)
+        if report is not None:
+            errors['valid']=np.r_[False,errors['valid']]
+            report['excluded_epochs']+=1
+            report['initial_prior_excluded']=True
         estimators.append({**item,'result':result,'accuracy':report,'errors':errors})
     return {'data':data,'estimators':estimators}
 
@@ -108,13 +148,20 @@ def real_payload(experiment):
                 mae=h['mae'],cp95=h['absolute_error_95'],max_error=h['max_error'])
         else:
             metric=dict(rmse=None,up_rmse=None,spatial_rmse=None)
-        metric.update(elapsed_ms=result['runtime_seconds']*1000,
+        epoch_ms=result['epoch_runtime_ms'][1:]
+        metric.update(median_step_ms=float(np.median(epoch_ms)),
+            q1_step_ms=float(np.quantile(epoch_ms,.25)),q3_step_ms=float(np.quantile(epoch_ms,.75)),
+            elapsed_ms=result['runtime_seconds']*1000,
             per_step_ms=result['runtime_seconds']*1000/(n-1),processed_epochs=n-1)
         metrics.append(metric);errors.append(error)
     return clean(dict(real=True,names=[i['name'] for i in items],
         kinds=[i['kind'] for i in items],frames=n,dt=float(np.median(np.diff(data.timestamps))),
         time=data.timestamps-data.timestamps[0],truth=truth,trajectories=trajectories,
         residuals=residuals,diagnostics=diagnostics,metrics=metrics,errors=errors,
+        epoch_runtime_ms=[i['result']['epoch_runtime_ms'] for i in items],
+        groups=experiment.get('groups',[]),
+        regions=([dict(name='Scene 1',start=1.,end=45.),dict(name='Scene 2',start=279.,end=327.)]
+                 if data.path.name=='urban_nav_medium' else []),
         satellite_counts=sat_counts,satellite_ids=sat_ids,bias=bias,
         has_truth=bool(items[0]['accuracy']),
         metadata=dict(model='10-state pseudorange/IMU with supplied AHRS attitude',
@@ -133,10 +180,11 @@ def save_real_experiment(experiment, output):
     for index,item in enumerate(experiment['estimators']):
         result=item['result'];label=f'{index+1}-{item["name"]}'.replace(' ','_')
         np.savez_compressed(output/f'{label}.npz',**{k:result[k] for k in (
-            'X','X_online','X_pred','covariances','timestamps')})
+            'X','X_online','X_pred','covariances','timestamps','epoch_runtime_ms')})
         np.savetxt(output/f'{label}.csv',np.column_stack((result['timestamps'],result['X_online'].T)),
             delimiter=',',header='utc_s,x_m,y_m,z_m,vx_mps,vy_mps,vz_mps,bax_mps2,bay_mps2,baz_mps2,clock_m',comments='')
         summary[label]=dict(accuracy=item['accuracy'],runtime_seconds=result['runtime_seconds'],
+            median_step_ms=float(np.nanmedian(result['epoch_runtime_ms'])),
             config=result['config'],solver=result['solver'])
     (output/'summary.json').write_text(json.dumps(clean(summary),indent=2,allow_nan=False))
     return output

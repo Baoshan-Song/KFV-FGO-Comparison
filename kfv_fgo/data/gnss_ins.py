@@ -12,10 +12,15 @@ from .rtklib import RtklibBackend
 
 class ImuData:
     def __init__(self, path):
-        values = np.loadtxt(
-            path, delimiter=",", skiprows=1, usecols=(0, 4, 5, 6, 7, 29, 30, 31)
-        )
-        self.time = values[:, 0] * 1e-9
+        if str(path).endswith('.npz'):
+            with np.load(path, allow_pickle=False) as cached:
+                values = np.column_stack((cached['time_s'],cached['quat_xyzw'],cached['acc_mps2']))
+            self.time = values[:,0]
+        else:
+            values = np.loadtxt(
+                path, delimiter=",", skiprows=1, usecols=(0, 4, 5, 6, 7, 29, 30, 31)
+            )
+            self.time = values[:, 0] * 1e-9
         _, indices = np.unique(self.time, return_index=True)
         indices.sort()
         self.time = self.time[indices]
@@ -80,16 +85,21 @@ class GnssImuDataset:
     def __init__(self, config):
         started = perf_counter()
         self.path = resolve_data_path(config)
-        for name in ("f9p_navi.obs", "brdm.rnx", "xsens_imu.csv"):
+        for name in ("f9p_navi.obs", "brdm.rnx"):
             if not (self.path / name).is_file():
                 raise FileNotFoundError(self.path / name)
+        imu_path = self.path / 'xsens_imu.csv'
+        if not imu_path.is_file():
+            imu_path = self.path / 'xsens_imu.npz'
+        if not imu_path.is_file():
+            raise FileNotFoundError(f'{self.path}: need xsens_imu.csv or xsens_imu.npz')
         self.backend = RtklibBackend(self.path / "f9p_navi.obs", self.path / "brdm.rnx")
         self.epochs = self.backend.epochs
         self.timestamps = np.array(
             [ep.gps_unix - config.leap_seconds for ep in self.epochs]
         )
         self.num_steps = len(self.timestamps)
-        imu = ImuData(self.path / "xsens_imu.csv")
+        imu = ImuData(imu_path)
         self.batches = [
             imu.interval(a, b)
             for a, b in zip(self.timestamps[:-1], self.timestamps[1:])

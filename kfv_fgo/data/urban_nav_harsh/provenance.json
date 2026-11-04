@@ -1,0 +1,21 @@
+{
+  "sequence": "UrbanNav-HK-Harsh-Urban-1",
+  "source": "https://github.com/IPNL-POLYU/UrbanNavDataset",
+  "conversion": "IMU: retain all rows and the eight float64 columns consumed by the original CSV loader, converting nanoseconds to seconds. All other files are byte-identical copies.",
+  "source_sha256": {
+    "f9p_navi.obs": "24ff4738e3a4abe0fd594c1ae8a315f55a5168144254fdb0b0e4beac1980ebdc",
+    "brdm.rnx": "8d10e95c8022377d5b6a8aeee6336fecf1323fa9699073895326cb59b3841a0f",
+    "gt.txt": "a05edc4641623a3ddf5d04fe9f36262bf7ae76ce9c87953d5c7840790324a317",
+    "xsens_imu.npz": "4d74ede2e9a5086bf0a958a953111598bdd4241337c75f7024ff337008294a43"
+  },
+  "packaged_sha256": {
+    "f9p_navi.obs": "24ff4738e3a4abe0fd594c1ae8a315f55a5168144254fdb0b0e4beac1980ebdc",
+    "brdm.rnx": "8d10e95c8022377d5b6a8aeee6336fecf1323fa9699073895326cb59b3841a0f",
+    "gt.txt": "a05edc4641623a3ddf5d04fe9f36262bf7ae76ce9c87953d5c7840790324a317",
+    "xsens_imu.npz": "62291ce9a060a9dc24ade01cfc650d7b1af48892aaa226e43a8cd0f534ee9547"
+  },
+  "imu_rows": 1345822,
+  "incomplete_final_rows_omitted": [
+    1345824
+  ]
+}

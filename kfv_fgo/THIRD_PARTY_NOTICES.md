@@ -13,9 +13,21 @@ pyRTKLIB is an installed dependency, not a bundled native binary in this source
 distribution: https://github.com/IPNL-POLYU/pyrtklib. Its own distribution contains
 its binding and RTKLIB notices. NumPy, SciPy and Matplotlib are installed separately.
 
-Example GNSS/IMU data are copied unchanged from the existing user-provided
-urban navigation recording in the MATLAB comparison project. No new license or
-ownership claim is made over the recording or its ground truth.
+The deep example recording was supplied with the contributed MATLAB/Python
+comparison. The medium and harsh recordings are from the public Hong Kong
+UrbanNav dataset (https://github.com/IPNL-POLYU/UrbanNavDataset), by the
+Intelligent Positioning and Navigation Laboratory, The Hong Kong Polytechnic
+University. Please cite Hsu et al., NAVIGATION 70(4), navi.602, 2023,
+https://doi.org/10.33012/navi.602, when using those data. Dataset ownership and
+terms remain with their original providers; the toolbox GPL does not assert
+ownership of the recordings. Broadcast navigation data are from DLR's BRDM
+products. Per-recording provenance.json records source file hashes.
+
+For medium and harsh, the IMU NPZ stores exactly the float64 time, quaternion
+and acceleration columns consumed by the CSV loader, with no resampling or
+quantization. The locally available harsh CSV ends with an incomplete final
+row, which is omitted and recorded in its provenance. This row is later than
+the last GNSS epoch. scripts/prepare_urbannav_article.py reproduces conversion.
 
 ## KF-GNSS-INS
 

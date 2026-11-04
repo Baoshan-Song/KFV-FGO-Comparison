@@ -56,11 +56,11 @@ def allocate(config, data, cfg):
     return x0, online, predicted, covariances, [None]*n
 
 
-def finish(config, data, solver, start, online, predicted, covariance, diagnostics, final=None):
+def finish(config, data, solver, start, online, predicted, covariance, diagnostics, epoch_ms, final=None):
     return dict(X=online.copy() if final is None else final, X_online=online,
         X_pred=predicted, covariances=covariance, epoch_diagnostics=diagnostics,
         debug_info=diagnostics, solver=solver, timestamps=data.timestamps.copy(),
-        runtime_seconds=perf_counter()-start, config=_config_to_dict(config),
+        runtime_seconds=perf_counter()-start, epoch_runtime_ms=epoch_ms, config=_config_to_dict(config),
         backend=data.backend.metadata,
         trajectory_semantics='X_online is causal; X is the final retained graph history')
 
@@ -70,11 +70,13 @@ def run_kfv(config, data):
     cfg = config.kfv
     state, online, predicted, covariances, diagnostics = allocate(config, data, cfg)
     covariance = cfg.p0.copy()
+    epoch_ms = np.full(data.num_steps, np.nan)
     if cfg.mode not in ('EKF', 'iEKF', 'rEKF', 'riEKF'):
         raise ValueError(f'Unknown filter {cfg.mode}')
     iterations = cfg.max_iteration if cfg.mode in ('iEKF', 'riEKF') else 1
     loss = cfg.robust_kernel if cfg.mode in ('rEKF', 'riEKF') else 'none'
     for k in range(1, data.num_steps):
+        epoch_start = perf_counter()
         xp, F, Q = data.propagate(state, k, cfg)
         pp = F@covariance@F.T+Q
         predicted[:, k] = xp
@@ -82,13 +84,15 @@ def run_kfv(config, data):
             xp, pp, lambda x: data.linearize(x, k), iterations,
             cfg.threshold_iteration, loss, cfg.robust_delta)
         online[:, k], covariances[k] = state, covariance
-    return finish(config, data, 'KfvEstimator', start, online, predicted, covariances, diagnostics)
+        epoch_ms[k] = (perf_counter()-epoch_start)*1000
+    return finish(config, data, 'KfvEstimator', start, online, predicted, covariances, diagnostics, epoch_ms)
 
 
 def run_fgo(config, data):
     start = perf_counter()
     cfg = config.fgo
     x0, online, predicted, covariances, diagnostics = allocate(config, data, cfg)
+    epoch_ms = np.full(data.num_steps, np.nan)
     recursive = cfg.imitate_kfv
     if recursive and cfg.window_size != 1:
         raise ValueError('Re-FGO requires window_size=1')
@@ -97,6 +101,7 @@ def run_fgo(config, data):
     graph.add_state(state)
     graph.add_factor(PositionFactor([state], x0.copy(), np.linalg.inv(cfg.p0)))
     for k in range(1, data.num_steps):
+        epoch_start = perf_counter()
         old = graph.states[-1]
         xp, _, _ = data.propagate(old.value, k, cfg)
         predicted[:, k] = xp
@@ -120,6 +125,8 @@ def run_fgo(config, data):
             covariances[k] = graph.last_measurement_marginalization['covariance']
         elif graph.win_size > cfg.window_size:
             graph.marginalize(k+1-cfg.window_size)
+        # Include both QR marginalizations and diagnostic collection.
+        epoch_ms[k] = (perf_counter()-epoch_start)*1000
     final = np.column_stack([state.value for state in graph.states])
     return finish(config, data, 'FgoEstimator', start, online, predicted,
-                  covariances, diagnostics, final)
+                  covariances, diagnostics, epoch_ms, final)
