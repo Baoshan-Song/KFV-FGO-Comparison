@@ -26,7 +26,7 @@ class ResidualTests(unittest.TestCase):
     def test_residual_views_and_json_use_missing_not_zero(self):
         data = make_data(num_steps=8)
         result, elapsed = run_estimator('kfv', make_config(), data)
-        item = dict(name='test', result=result, metrics=metrics(result,data['true_positions'],elapsed))
+        item = dict(name='test', kind='kfv', result=result, metrics=metrics(result,data['true_positions'],elapsed))
         experiment = dict(data=data, estimators=[item,item])
         payload = comparison_payload(experiment)
         encoded = json.dumps(payload, allow_nan=False)

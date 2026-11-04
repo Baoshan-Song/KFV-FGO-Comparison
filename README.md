@@ -28,13 +28,13 @@ All animated trajectories and reported position metrics use **online** estimates
 
 | View | Definition | Units |
 |---|---|---|
-| Post-fit residual | `z[k] − h(x[k|k])` | m |
-| Prediction innovation | `z[k] − h(x[k|k−1])` | m |
-| Measurement error | `z[k] − h(x_truth[k])`, simulation diagnostic only | m |
+| Post-fit norm | `norm(z[k] − h(x[k|k]), 2)` | m |
+| Innovation norm | `norm(z[k] − h(x[k|k−1]), 2)` | m |
+| Measurement-error norm | `norm(z[k] − h(x_truth[k]), 2)`, simulation diagnostic only | m |
 | Iteration objective | Prior/motion costs plus measurement loss over active factors | dimensionless |
 | Iteration range norm | Euclidean norm of the current epoch's unweighted range residuals | m |
 
-Use the epoch slider to inspect the update path and the shared residual y-limit to zoom. The two panels use identical axes. The iteration display includes the initial iterate and the state after every update. It reports whether the step tolerance was reached; exhausting a budget is **not** reported as convergence. Objective values from different windows/losses are not directly comparable. Undamped Gauss–Newton does not guarantee monotonic descent, and robust optimization need not reduce the unweighted range norm.
+The figure style follows the Inside GNSS draft: black-square truth, filter crosses, and graph open circles. The two compared methods use blue and red. The Trajectory, Position error and Residual norm tabs pair a full view with an enlarged interval. The Iteration path tab pairs the range-residual contours and update path with the convergence curve. Change the epoch and detail length to inspect another region. Save SVG exports the current figure as editable vector graphics. The iteration display includes the initial iterate and the state after every update. It reports whether the step tolerance was reached; exhausting a budget is **not** reported as convergence. Objective values from different windows/losses are not directly comparable. Undamped Gauss–Newton does not guarantee monotonic descent, and robust optimization need not reduce the unweighted range norm.
 
 For sliding windows, `result["X"]` is the final stored trajectory (each retired state at its last update), while `result["X_online"]` is causal. `X_pred` and `epoch_diagnostics` support the UI. `covariances` contains the Gaussian or local IRLS covariance for KFV/Re-FGO; SW-FGO entries after initialization are NaN because full-window covariance extraction is not enabled.
 
@@ -86,6 +86,15 @@ Re-FGO requires `imitate_kfv=True`, `window_size=1`. Stage 1 eliminates the prev
 Ordinary SW-FGO optimizes first and retires on window overflow. Only factors incident to the removed states enter the local prior, preventing double counting. A window of one alone does not enable the two-stage pipeline.
 
 The `autodiff` JSON/config key is retained for compatibility, but it selects **central finite differences**, not automatic differentiation. The Colab form labels it as a numerical Jacobian. Analytic derivatives are the default.
+
+## Article simulation figures
+
+```bash
+python -m pip install -e '.[plots]'
+python scripts/insidegnss_simulation.py --output artifacts/insidegnss
+```
+
+This exports PDF/SVG/PNG trajectory, position-error/residual, and first-update figures, plus raw arrays and a JSON results summary. The full interval and first 15 processed epochs are specified in advance. These are newly computed simulation results, separate from any GNSS/INS field data in the article.
 
 ## Verification
 

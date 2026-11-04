@@ -140,6 +140,9 @@ def comparison_payload(experiment):
     return value
   return clean(dict(
     names=[item["name"] for item in estimators], frames=count,
+    kinds=[item["kind"] for item in estimators],
+    dt=float(np.asarray(data.get("dt", 1.)).squeeze()),
+    emitters=data["emitter_positions"], measurements=data["toa_measurements"][:, :count],
     truth=data["true_positions"][:, :count],
     trajectories=[r["X_online"][:2, :count] for r in results],
     metrics=[item["metrics"] for item in estimators],

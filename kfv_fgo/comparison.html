@@ -1,95 +1,120 @@
-<div id="__ID__" class="kfv-comparison">
+<div id="__ID__" class="paper-comparison">
 <style>
-#__ID__ {font:15px/1.45 system-ui,sans-serif;color:#203044;background:#f5f8fc;padding:18px;border-radius:12px;max-width:1200px}
-#__ID__ .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
-#__ID__ button,#__ID__ select,#__ID__ input{font:inherit}
-#__ID__ button,#__ID__ select{padding:6px 9px;border:1px solid #bdcbd8;border-radius:5px;background:white;color:#203044}
-#__ID__ .panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-#__ID__ .panel{padding:12px;background:white;border:1px solid #d7e0e9;border-radius:8px}
-#__ID__ canvas{width:100%;height:auto;display:block}
-#__ID__ h3{margin:0 0 4px;font-size:18px}
-#__ID__ .stats,#__ID__ .status{font-size:13px;color:#455b70}
-@media(max-width:700px){#__ID__ .panels{grid-template-columns:1fr}}
+#__ID__{font:16px/1.45 Arial,Helvetica,sans-serif;color:#171717;background:white;padding:16px;max-width:1250px;border:1px solid #ddd}
+#__ID__ .controls,#__ID__ .tabs,#__ID__ .stats{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:10px 0}
+#__ID__ button,#__ID__ select,#__ID__ input{font:inherit;color:inherit;background:white;border:1px solid #aaa;border-radius:3px;padding:5px 9px}
+#__ID__ button{cursor:pointer}#__ID__ button.active{background:#111;color:white;border-color:#111}
+#__ID__ .stats{font-size:14px}#__ID__ svg{display:block;width:100%;height:auto}
+#__ID__ .caption{font-size:15px;margin:8px 0}#__ID__ details{font-size:13px;color:#555;margin-top:12px}
 </style>
-<strong>Online estimates and residuals</strong>
-<div>Both methods use the state available at each epoch. The initial prior at k = 0 is excluded from residuals and accuracy statistics.</div>
-<div class="controls"><button class="play">Play</button><input class="frame" type="range" min="0" value="1" style="flex:1;min-width:180px"><span class="label"></span></div>
-<div class="controls"><label>Range view <select class="residual"><option value="postfit">Post-fit z − h(xk|k) [m]</option><option value="prefit">Innovation z − h(xk|k−1) [m]</option><option value="truth">Measurement error z − h(xtruth) [m]</option></select></label><label>Y limit ± <input class="limit" type="number" min="0.001" step="0.1" placeholder="Auto" style="width:85px"> m</label></div>
-<div class="controls"><label>Iteration view <select class="objective"><option value="objective">Full objective (dimensionless)</option><option value="measurement_residual_norm_m">Unweighted range residual norm [m]</option></select></label></div>
-<div class="panels"></div>
-<div class="note">The objective includes the prior and all active factors, with the selected robust loss. Its value is not comparable between different window sizes or losses. It need not decrease at every undamped Gauss–Newton step. A small post-fit residual is not proof that an outlier was removed.</div>
+<div class="tabs"><button data-view="trajectory" class="active">Trajectory</button><button data-view="error">Position error</button><button data-view="residual">Residual norm</button><button data-view="iterations">Iteration path</button><button class="export">Save SVG</button></div>
+<div class="controls"><button class="play">Play</button><label>Epoch <input class="epoch" type="number" min="1" value="15" style="width:65px"></label><input class="frame" aria-label="Epoch slider" type="range" min="1" value="15" style="flex:1;min-width:180px"><label class="detail-label">Detail <input class="span" aria-label="Detail epochs" type="number" min="2" value="8" style="width:58px"> epochs</label></div>
+<div class="controls residual-controls" style="display:none"><label>Range view <select class="residual"><option value="postfit">Post-fit norm [m]</option><option value="prefit">Innovation norm [m]</option><option value="truth">Truth measurement-error norm [m]</option></select></label></div>
+<div class="controls iteration-controls" style="display:none"><label>Iteration view <select class="objective"><option value="measurement_residual_norm_m">Range residual norm [m]</option><option value="objective">Full objective</option></select></label><span>The contour uses the unweighted range residual norm (m).</span></div>
+<div class="stats"></div><div class="figure"></div><div class="caption"></div>
+<details><summary>Definitions and numerical checks</summary><p>Trajectories and epoch-wise residuals use online states before later measurements can revise them. Epoch 0 is an initial prior and is not a measurement update. Range norms are unweighted Euclidean norms. The full objective includes prior, motion and the selected robust measurement loss. Its values cannot be compared across different windows or losses. The contour contains only current range measurements, not the full posterior objective. Iteration records use the same stored states as the solver.</p></details>
 <script>
 (()=>{
-const root=document.getElementById('__ID__'), data=__PAYLOAD__;
-const palette=['#1769aa','#dc7027','#16987e','#7853a6','#c64170','#74822a'];
-const frameInput=root.querySelector('.frame'), play=root.querySelector('.play'), selector=root.querySelector('.residual'), limit=root.querySelector('.limit'), objective=root.querySelector('.objective');
-frameInput.max=data.frames-1;
-const panels=data.names.map((name,i)=>{
- const panel=document.createElement('div');panel.className='panel';
- const title=document.createElement('h3');title.textContent=name;panel.appendChild(title);
- const stats=document.createElement('div');stats.className='stats';const m=data.metrics[i];
- stats.textContent=`RMSE ${m.rmse.toFixed(3)} m · CP95 ${m.cp95.toFixed(3)} m · ${m.per_step_ms.toFixed(2)} ms/update`;panel.appendChild(stats);
- const canvas=document.createElement('canvas');canvas.width=660;canvas.height=830;panel.appendChild(canvas);
- const status=document.createElement('div');status.className='status';panel.appendChild(status);
- root.querySelector('.panels').appendChild(panel);return {ctx:canvas.getContext('2d'),status};
-});
-const finite=v=>typeof v==='number'&&Number.isFinite(v);
-const positionBound=Math.max(1,...data.truth.flat().map(Math.abs),...data.trajectories.flat(2).map(Math.abs))*1.12;
-function axes(c,top,bottom,xmin,xmax,ymin,ymax,xlabel,ylabel,square=false){
- const left=square?(660-bottom+top)/2:78,right=square?(660+bottom-top)/2:638;
- const X=x=>left+(x-xmin)/(xmax-xmin)*(right-left),Y=y=>bottom-(y-ymin)/(ymax-ymin)*(bottom-top);
- c.font='15px system-ui';c.lineWidth=1;
- for(let i=0;i<=4;i++){
-  const x=xmin+(xmax-xmin)*i/4,y=ymin+(ymax-ymin)*i/4;
-  c.strokeStyle='#e2e8ee';c.beginPath();c.moveTo(X(x),top);c.lineTo(X(x),bottom);c.stroke();
-  c.beginPath();c.moveTo(left,Y(y));c.lineTo(right,Y(y));c.stroke();
-  const format=v=>Math.abs(v)>=1000?v.toExponential(1):String(Number(v.toFixed(2)));
-  c.fillStyle='#536478';c.textAlign='center';c.fillText(format(x),X(x),bottom+21);
-  c.textAlign='right';c.fillText(format(y),left-9,Y(y)+5);
- }
- c.strokeStyle='#8093a5';c.strokeRect(left,top,right-left,bottom-top);
- c.fillStyle='#203044';c.textAlign='center';c.font='16px system-ui';c.fillText(xlabel,(left+right)/2,bottom+44);
- c.save();c.translate(left-59,(top+bottom)/2);c.rotate(-Math.PI/2);c.fillText(ylabel,0,0);c.restore();return {X,Y,left,right,top,bottom};
+const root=document.getElementById('__ID__'), data=__PAYLOAD__, ns='http://www.w3.org/2000/svg';
+const $=s=>root.querySelector(s), epoch=$('.epoch'), slider=$('.frame'), span=$('.span');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+const finite=v=>typeof v==='number'&&Number.isFinite(v), fmt=v=>Math.abs(v)>=1e4|| (Math.abs(v)>0&&Math.abs(v)<1e-8)?v.toExponential(1):String(Number(v.toFixed(Math.abs(v)>=10?1:2)));
+const styles=data.names.map((n,i)=>({color:i===0?'#1857d3':'#e3272b',marker:data.kinds[i]==='fgo'?'o':'x',dash:i===1?'7 5':'none'}));
+const gt={color:'#111',marker:'s'};let view='trajectory',timer=null;
+let latestSvg=''; epoch.max=slider.max=data.frames-1;epoch.value=slider.value=Math.min(15,data.frames-1);
+$('.stats').innerHTML=data.names.map((n,i)=>`<span><b style="color:${styles[i].color}">${esc(n)}</b> RMSE ${data.metrics[i].rmse.toFixed(3)} m</span>`).join('');
+const difference=Math.max(...data.trajectories[0].flatMap((a,j)=>a.slice(1).map((v,k)=>Math.abs(v-data.trajectories[1][j][k+1]))));
+$('.stats').innerHTML+=`<span>Max. coordinate difference ${difference.toExponential(2)} m</span>`;
+function node(tag,attrs={},text=''){return `<${tag} ${Object.entries(attrs).map(([k,v])=>`${k}="${esc(v)}"`).join(' ')}>${text}</${tag}>`;}
+function marker(x,y,style,size=4.4){
+ if(style.marker==='o')return node('circle',{cx:x,cy:y,r:size,fill:'none',stroke:style.color,'stroke-width':2});
+ if(style.marker==='s')return node('rect',{x:x-size*.7,y:y-size*.7,width:size*1.4,height:size*1.4,fill:style.color});
+ return node('path',{d:`M${x-size},${y-size}L${x+size},${y+size}M${x-size},${y+size}L${x+size},${y-size}`,stroke:style.color,'stroke-width':2,fill:'none'});
 }
-function line(c,points,axis,color,width=2){
- c.save();c.beginPath();c.rect(axis.left,axis.top,axis.right-axis.left,axis.bottom-axis.top);c.clip();
- c.beginPath();c.strokeStyle=color;c.lineWidth=width;let started=false;
- for(const [x,y] of points){if(!finite(x)||!finite(y)){started=false;continue;}if(started)c.lineTo(axis.X(x),axis.Y(y));else c.moveTo(axis.X(x),axis.Y(y));started=true;}
- c.stroke();c.restore();
+function bounds(points,square=false){
+ let xs=points.map(p=>p[0]).filter(finite),ys=points.map(p=>p[1]).filter(finite);
+ let xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+ let dx=Math.max(.2,xmax-xmin),dy=Math.max(.2,ymax-ymin);
+ if(square){dx=dy=Math.max(dx,dy);}return [(xmin+xmax)/2-dx*.57,(xmin+xmax)/2+dx*.57,(ymin+ymax)/2-dy*.57,(ymin+ymax)/2+dy*.57];
+}
+function panel(index,b,title,xlabel,ylabel,square=false){
+ let left=index*610+82,top=87,width=490,height=330;
+ if(square){left+=80;width=height=330;}
+ const [xmin,xmax,ymin,ymax]=b,X=x=>left+(x-xmin)/(xmax-xmin)*width,Y=y=>top+height-(y-ymin)/(ymax-ymin)*height;
+ let s=node('text',{x:index*610+310,y:62,'text-anchor':'middle','font-weight':'bold','font-size':22},esc(title));
+ for(let i=0;i<=4;i++){
+ const x=xmin+(xmax-xmin)*i/4,y=ymin+(ymax-ymin)*i/4;
+ s+=node('path',{d:`M${X(x)},${top}v${height}M${left},${Y(y)}h${width}`,stroke:'#dedede','stroke-width':1,fill:'none'});
+ s+=node('text',{x:X(x),y:top+height+26,'text-anchor':'middle'},fmt(x));
+ s+=node('text',{x:left-12,y:Y(y)+6,'text-anchor':'end'},fmt(y));
+ }
+ s+=node('rect',{x:left,y:top,width,height,fill:'none',stroke:'#444','stroke-width':1.2});
+ s+=node('text',{x:left+width/2,y:top+height+57,'text-anchor':'middle','font-size':22},xlabel);
+ s+=node('text',{transform:`translate(${left-64},${top+height/2}) rotate(-90)`,'text-anchor':'middle','font-size':22},ylabel);
+ s+=`<defs><clipPath id="__ID___clip${index}"><rect x="${left}" y="${top}" width="${width}" height="${height}"/></clipPath></defs>`;
+ return {s,X,Y,left,top,width,height,index,b};
+}
+function series(p,points,style,marked=true){
+ let d='',open=false;for(const [x,y] of points){if(!finite(x)||!finite(y)){open=false;continue;}d+=`${open?'L':'M'}${p.X(x)},${p.Y(y)}`;open=true;}
+ let s=node('path',{d,fill:'none',stroke:style.color,'stroke-width':2.5,'stroke-dasharray':style.dash||'none'});
+ if(marked){const step=Math.max(1,Math.ceil(points.length/45));points.forEach(([x,y],j)=>{if(j%step===0&&finite(x)&&finite(y))s+=marker(p.X(x),p.Y(y),style);});}
+ return `<g clip-path="url(#__ID___clip${p.index})">${s}</g>`;
+}
+function legend(){let items=[['GT',gt],...data.names.map((n,i)=>[n,styles[i]])];if(view==='residual'||view==='error')items=items.slice(1);
+ let x=60,s='';for(const [name,style] of items){s+=node('path',{d:`M${x},22h38`,stroke:style.color,'stroke-width':2.5,'stroke-dasharray':style.dash||'none'});s+=marker(x+19,22,style,5);s+=node('text',{x:x+48,y:28,'font-size':21},esc(name));x+=name.length*10+95;}return s;}
+function contour(p,k){
+ const N=36,values=[],[xmin,xmax,ymin,ymax]=p.b;
+ for(let j=0;j<=N;j++){values[j]=[];for(let i=0;i<=N;i++){
+ const x=xmin+(xmax-xmin)*i/N,y=ymin+(ymax-ymin)*j/N;let sum=0;
+ data.emitters[0].forEach((ex,s)=>{const r=data.measurements[s][k]-Math.hypot(x-ex,y-data.emitters[1][s]);sum+=r*r;});values[j][i]=Math.sqrt(sum);}}
+ const lo=Math.min(...values.flat()),hi=Math.max(...values.flat());let s='';
+ for(let l=1;l<=9;l++){const level=lo+(hi-lo)*l/10;let d='';
+ for(let j=0;j<N;j++)for(let i=0;i<N;i++){
+ const corners=[[i,j],[i+1,j],[i+1,j+1],[i,j+1]],hits=[];
+ for(let e=0;e<4;e++){const a=corners[e],b=corners[(e+1)%4],va=values[a[1]][a[0]],vb=values[b[1]][b[0]];
+ if((va<=level&&vb>level)||(vb<=level&&va>level)){const t=(level-va)/(vb-va);hits.push([p.left+(a[0]+t*(b[0]-a[0]))/N*p.width,p.top+p.height-(a[1]+t*(b[1]-a[1]))/N*p.height]);}}
+ for(let n=0;n+1<hits.length;n+=2)d+=`M${hits[n][0]},${hits[n][1]}L${hits[n+1][0]},${hits[n+1][1]}`;
+ }s+=node('path',{d,fill:'none',stroke:'#b9b9b9','stroke-width':1});}
+ return s;
 }
 function render(){
- const frame=Number(frameInput.value), key=selector.value, field=objective.value;
- root.querySelector('.label').textContent=`Epoch ${frame} / ${data.frames-1}`;
- const residuals=data.residuals[key], requested=Number(limit.value);
- const bound=requested>0?requested:1.12*Math.max(.01,...residuals.flat(2).filter(finite).map(Math.abs));
- const traces=data.diagnostics.map(d=>d[frame]?.iteration_trace||[]);
- const vals=traces.flatMap(t=>t.map(v=>v[field])).filter(finite);
- const xmax=Math.max(1,...traces.map(t=>t.length-1)), ymax=Math.max(.0001,...vals)*1.1;
- panels.forEach(({ctx:c,status},i)=>{
-  c.clearRect(0,0,660,830);c.font='16px system-ui';c.textAlign='left';c.fillStyle='#203044';c.fillText('Truth (grey) and online trajectory (colour)',78,23);
-  const pos=axes(c,36,278,-positionBound,positionBound,-positionBound,positionBound,'x [m]','y [m]',true);
-  line(c,data.truth[0].slice(0,frame+1).map((x,k)=>[x,data.truth[1][k]]),pos,'#8a9199',2);
-  const trajectory=data.trajectories[i];line(c,trajectory[0].slice(0,frame+1).map((x,k)=>[x,trajectory[1][k]]),pos,palette[i],2.5);
-  c.beginPath();c.fillStyle=palette[i];c.arc(pos.X(trajectory[0][frame]),pos.Y(trajectory[1][frame]),4,0,2*Math.PI);c.fill();
-  c.font='15px system-ui';c.textAlign='left';
-  residuals[i].forEach((_,j)=>{c.fillStyle=palette[j%palette.length];c.fillText(`Anchor ${j+1}`,78+j*90,348)});
-  const res=axes(c,361,516,0,Math.max(1,data.frames-1),-bound,bound,'Epoch k','Range residual [m]');
-  residuals[i].forEach((r,j)=>{
-   line(c,r.slice(0,frame+1).map((v,k)=>[k,v]),res,palette[j%palette.length]);
-   if(finite(r[frame])&&Math.abs(r[frame])<=bound){c.beginPath();c.arc(res.X(frame),res.Y(r[frame]),3,0,2*Math.PI);c.fillStyle=palette[j%palette.length];c.fill();}
-  });
-  c.fillStyle='#203044';c.font='16px system-ui';c.textAlign='left';c.fillText(`Current epoch ${frame}: ${field==='objective'?'full objective':'range residual norm'}`,78,590);
-  const opt=axes(c,605,752,0,xmax,0,ymax,'Gauss–Newton / IEKF iteration',field==='objective'?'Objective':'Residual norm [m]');
-  line(c,traces[i].map(t=>[t.iteration,t[field]]),opt,palette[i],2.5);
-  for(const t of traces[i]){c.beginPath();c.arc(opt.X(t.iteration),opt.Y(t[field]),3,0,2*Math.PI);c.fillStyle=palette[i];c.fill();}
-  const d=data.diagnostics[i][frame];status.textContent=d?`${d.iterations} update(s) · ${d.converged?'step tolerance reached':'iteration budget reached; convergence not asserted'}`:'Initial prior only; no measurement update';
- });
+ const k=Math.max(1,Math.min(data.frames-1,Number(epoch.value)||1));epoch.value=slider.value=k;
+ const length=Math.max(2,Number(span.value)||15),start=Math.max(1,k-length+1),end=k;
+ const indices=Array.from({length:end-start+1},(_,i)=>start+i),all=Array.from({length:data.frames-1},(_,i)=>i+1);
+ const positions=(t,ii)=>ii.map(j=>[t[0][j],t[1][j]]);let content=legend(),caption='';
+ if(view==='trajectory'){
+ const sets=[data.truth,...data.trajectories],bs=bounds(sets.flatMap(t=>positions(t,all)),true),detail=bounds(sets.flatMap(t=>positions(t,indices)),true);
+ const a=panel(0,bs,'(a) Complete trajectory','X [m]','Y [m]',true),b=panel(1,detail,`(b) Epochs ${start}–${end}`,'X [m]','Y [m]',true);
+ for(const p of [a,b]){content+=p.s;const ii=p===a?all:indices;content+=series(p,positions(data.truth,ii),gt);data.trajectories.forEach((t,i)=>content+=series(p,positions(t,ii),styles[i]));}
+ content+=node('rect',{x:a.X(detail[0]),y:a.Y(detail[3]),width:a.X(detail[1])-a.X(detail[0]),height:a.Y(detail[2])-a.Y(detail[3]),fill:'none',stroke:'#111','stroke-width':2,'stroke-dasharray':'6 4'});
+ caption='Black squares show truth. Crosses show filter estimates and open circles show graph estimates. The outlined region is enlarged on the right. Both plots use equal X/Y scales.';
+ }else if(view==='iterations'){
+ const traces=data.diagnostics.map(d=>d[k]?.iteration_trace||[]),paths=traces.map(t=>t.map(v=>[v.state[0],v.state[1]])),truth=[data.truth[0][k],data.truth[1][k]];
+ const p=panel(0,bounds([...paths.flat(),truth],true),'(a) Update path and range contours','X [m]','Y [m]',true);content+=p.s+contour(p,k)+series(p,[truth],gt);
+ paths.forEach((v,i)=>content+=series(p,v,styles[i]));
+ const field=$('.objective').value,curves=traces.map(t=>t.map(v=>[v.iteration,v[field]]));
+ const maxiter=Math.max(1,...curves.flat().map(v=>v[0])),maximum=Math.max(.001,...curves.flat().map(v=>v[1]));
+ const q=panel(1,[0,maxiter,0,maximum*1.08],'(b) Iteration convergence','Iteration',field==='objective'?'Objective':'Residual norm [m]');content+=q.s;curves.forEach((v,i)=>content+=series(q,v,styles[i]));
+ caption=data.names.map((n,i)=>{const d=data.diagnostics[i][k];return `${n}: ${d.iterations} updates, ${d.converged?'step tolerance reached':'iteration budget reached'}`;}).join('. ')+'. Grey contours show the current range norm only. They are not contours of the full posterior objective.';
+ }else{
+ const field=$('.residual').value;
+ const curves=data.trajectories.map((t,i)=>all.map(k=>[k*data.dt,view==='error'?Math.hypot(t[0][k]-data.truth[0][k],t[1][k]-data.truth[1][k]):Math.hypot(...data.residuals[field][i].map(v=>v[k]))]));
+ const zoom=curves.map(c=>c.slice(start-1,end)),ylabel=view==='error'?'2D position error [m]':'Residual norm [m]';
+ const max=Math.max(.01,...curves.flat().map(v=>v[1])),zmax=Math.max(.01,...zoom.flat().map(v=>v[1]));
+ const a=panel(0,[data.dt,(data.frames-1)*data.dt,0,max*1.1],'(a) Full interval','Time [s]',ylabel),b=panel(1,[start*data.dt,Math.max(start+1,end)*data.dt,0,zmax*1.12],'(b) Enlarged interval','Time [s]',ylabel);
+ content+=a.s+b.s;curves.forEach((v,i)=>content+=series(a,v,styles[i]));zoom.forEach((v,i)=>content+=series(b,v,styles[i]));
+ content+=node('rect',{x:a.X(start*data.dt),y:a.top,width:Math.max(1,a.X(end*data.dt)-a.X(start*data.dt)),height:a.height,fill:'none',stroke:'#111','stroke-width':2,'stroke-dasharray':'6 4'});
+ caption=view==='error'?'Euclidean position error from online estimates. The selected interval is enlarged without removing any epochs.':'Euclidean norm across all current range observations. Robust weighting can increase this raw norm while reducing position error. A smaller norm alone is not a positioning-accuracy result.';
+ }
+ if(difference<1e-8)caption+=' The two solutions coincide numerically; the cross and open-circle markers are intentionally overlaid.';
+ latestSvg=`<svg xmlns="${ns}" viewBox="0 0 1220 495" width="1220" height="495" role="img" aria-label="${esc(view)} comparison"><style>text{font-family:Arial,Helvetica,sans-serif;font-size:20px;fill:#111}svg{background:white}</style><rect width="1220" height="495" fill="white"/>${content}</svg>`;
+ $('.figure').innerHTML=latestSvg;$('.caption').textContent=caption;
 }
-let timer=null;for(const control of [frameInput,selector,limit,objective])control.addEventListener('input',render);
-play.addEventListener('click',()=>{if(timer){clearInterval(timer);timer=null;play.textContent='Play';return;}
- if(Number(frameInput.value)>=data.frames-1)frameInput.value=1;
- play.textContent='Pause';timer=setInterval(()=>{if(!root.isConnected||Number(frameInput.value)>=data.frames-1){clearInterval(timer);timer=null;play.textContent='Play';return;}frameInput.value=Number(frameInput.value)+1;render();},__INTERVAL__);
-});render();
+for(const button of root.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{view=button.dataset.view;root.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b===button));$('.detail-label').style.display=view==='iterations'?'none':'';$('.residual-controls').style.display=view==='residual'?'flex':'none';$('.iteration-controls').style.display=view==='iterations'?'flex':'none';if(view==='iterations')epoch.value=1;render();});
+slider.addEventListener('input',()=>{epoch.value=slider.value;render();});for(const c of [epoch,span,$('.residual'),$('.objective')])c.addEventListener('input',render);
+$('.play').addEventListener('click',()=>{if(timer){clearInterval(timer);timer=null;$('.play').textContent='Play';return;}if(Number(epoch.value)>=data.frames-1)epoch.value=1;$('.play').textContent='Pause';timer=setInterval(()=>{if(!root.isConnected||Number(epoch.value)>=data.frames-1){clearInterval(timer);timer=null;$('.play').textContent='Play';return;}epoch.value=Number(epoch.value)+1;render();},__INTERVAL__);});
+$('.export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([latestSvg],{type:'image/svg+xml'})),a=document.createElement('a');a.href=url;a.download=`kfv-fgo-${view}-epoch-${epoch.value}.svg`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+render();
 })();
 </script>
 </div>

@@ -11,6 +11,7 @@ dependencies = ["numpy>=1.24", "scipy>=1.10"]
 
 [project.optional-dependencies]
 colab = ["ipython>=8", "notebook>=7"]
+plots = ["matplotlib>=3.8"]
 
 [tool.setuptools]
 py-modules = ["experiment_common", "schur_window_benchmark"]
