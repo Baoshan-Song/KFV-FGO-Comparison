@@ -1,12 +1,12 @@
 """Fixed-prediction IEKF, arXiv:2511.00306v2, Eqs. (18)--(20)."""
 import numpy as np
 from .ekf import _predict_measurements
-from ..objective import robust_weights, loss_cost
+from ..objective import robust_weights, loss_cost, continuation_start, continuation_scale
 
 
 def iterated_update(x_prev, p_prev, dt, omega, f, F, Q, measurements,
                     emitters, h, H, r_base, max_iter, threshold,
-                    loss_type='none', delta=2.):
+                    loss_type='none', delta=2., continuation=False):
     if max_iter < 1 or r_base <= 0:
         raise ValueError('At least one iteration and positive measurement variance are required')
     x_pred = np.asarray(f(x_prev, dt, omega), dtype=float).reshape(-1)
@@ -22,13 +22,17 @@ def iterated_update(x_prev, p_prev, dt, omega, f, F, Q, measurements,
         prior = np.linalg.solve(prior_root, value-x_pred)
         trace.append(dict(iteration=iteration, state=value.copy(),
             measurement_residual_norm_m=float(np.linalg.norm(raw)),
-            objective=.5*float(prior@prior)+loss_cost(raw/np.sqrt(r_base), loss_type, delta)))
+            objective=.5*float(prior@prior)+loss_cost(raw/np.sqrt(r_base), loss_type, effective_delta), robust_scale=effective_delta))
+    initial_residual = (_predict_measurements(x, measurements, emitters, h, H)[0] / np.sqrt(r_base))
+    start_scale = continuation_start(initial_residual, loss_type, delta, continuation)
+    effective_delta = start_scale
     record(x, 0)
     converged = False
     for iteration in range(1, max_iter+1):
+        effective_delta = continuation_scale(start_scale, delta, iteration, max_iter)
         linearization = x.copy()
         residual, jacobian = _predict_measurements(x, measurements, emitters, h, H)
-        weights = robust_weights(residual/np.sqrt(r_base), loss_type, delta)
+        weights = robust_weights(residual/np.sqrt(r_base), loss_type, effective_delta)
         root = np.sqrt(weights)
         weighted_h = root[:, None]*jacobian
         innovation = weighted_h @ p_pred @ weighted_h.T + covariance
@@ -42,7 +46,7 @@ def iterated_update(x_prev, p_prev, dt, omega, f, F, Q, measurements,
         step = x_next-x
         x = x_next
         record(x, iteration)
-        converged = np.linalg.norm(step)/len(x) < threshold
+        converged = np.linalg.norm(step)/len(x) < threshold and effective_delta <= delta
         if converged: break
     postfit, _ = _predict_measurements(x, measurements, emitters, h, H)
     prefit, _ = _predict_measurements(x_pred, measurements, emitters, h, H)
@@ -63,7 +67,7 @@ __all__ = ['miekf']
 
 
 def observation_update(x_pred, p_pred, observe, max_iter, threshold,
-                       loss_type='none', delta=2.):
+                       loss_type='none', delta=2., continuation=False):
     """Gain update for a state-dependent, diagonal observation covariance.
 
     observe(x) returns z-h(x), H, R and observation IDs. The predicted
@@ -80,14 +84,18 @@ def observation_update(x_pred, p_pred, observe, max_iter, threshold,
         trace.append(dict(iteration=iteration, state=value.copy(),
             measurement_residual_norm_m=float(np.linalg.norm(raw)),
             objective=.5*float(prior@prior) + loss_cost(
-                raw/np.sqrt(np.diag(covariance)), loss_type, delta)))
+                raw/np.sqrt(np.diag(covariance)), loss_type, effective_delta), robust_scale=effective_delta))
 
+    initial_raw, _, initial_cov, _ = observe(x)
+    start_scale = continuation_start(initial_raw / np.sqrt(np.diag(initial_cov)), loss_type, delta, continuation)
+    effective_delta = start_scale
     record(x, 0)
     converged = False
     for iteration in range(1, max_iter+1):
+        effective_delta = continuation_scale(start_scale, delta, iteration, max_iter)
         linearization = x.copy()
         residual, jacobian, covariance, ids = observe(x)
-        weights = robust_weights(residual/np.sqrt(np.diag(covariance)), loss_type, delta)
+        weights = robust_weights(residual/np.sqrt(np.diag(covariance)), loss_type, effective_delta)
         root = np.sqrt(weights)
         weighted_h = root[:, None]*jacobian
         innovation = weighted_h @ p_pred @ weighted_h.T + covariance
@@ -99,7 +107,7 @@ def observation_update(x_pred, p_pred, observe, max_iter, threshold,
         step = x_next-x
         x = x_next
         record(x, iteration)
-        converged = np.linalg.norm(step)/len(x) < threshold
+        converged = np.linalg.norm(step)/len(x) < threshold and effective_delta <= delta
         if converged:
             break
     postfit, _, _, post_ids = observe(x)

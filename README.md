@@ -11,7 +11,7 @@
 3. Choose **Simulation** or **Real GNSS/INS**. Configure the two method cards, then click **Run comparison**.
 4. Inspect the plots and export with **Save SVG** or **Save data**.
 
-Both data sources are available inside every module. There is no separate real-data page or article-specific module. Stop calculations using Colab's cell stop button. Play / Pause in the result viewer controls replay only. Save outputs before the cloud session expires.
+Both data sources are available inside every module. There is no separate real-data page or article-specific module. The Run button starts a background calculation. Stop ends after the current epoch and keeps the completed plots. The notebook stays responsive while the worker computes. Save outputs before the cloud session expires.
 
 | Module | Comparisons |
 |---|---|
@@ -66,6 +66,31 @@ Process standard deviations are squared to form diagonal Q. They are discrete un
 The real model estimates ECEF position (3), ECEF velocity (3), body accelerometer bias (3) and receiver clock bias (1). It uses recorded AHRS attitude and first-valid-sample Euler propagation per GNSS interval. It is a pseudorange/IMU estimator comparison, not carrier-phase RTK or a complete strapdown INS. Observation variances depend on elevation and SNR, following the contributed model. The simulation noise controls do not affect real data.
 
 Truth is used only for evaluation, interpolated at overlapping UTC timestamps without extrapolation or fitted trajectory alignment. Plots use causal online states, including SW-FGO. Epoch zero is the initial prior and is excluded from accuracy statistics. Missing GNSS intervals break the plotted curves.
+
+## Live computation and time navigation
+
+Both simulation and real-data comparisons update while solving. The worker alternates the two methods at each epoch, and the display refreshes up to about three times per second rather than sending a whole figure for every observation. Data loading is reported before the first result appears.
+
+- **Follow latest** tracks the newest completed pair of updates.
+- Drag **Time** backwards or forwards to examine completed epochs. This turns automatic following off, so incoming results do not move your selection.
+- The time label gives elapsed seconds and the epoch index, including irregular real-data intervals. **Detail (s)** controls the local time span.
+- Live views show trajectory, position error and post-fit / innovation residual norms. Grey bands identify recorded GNSS gaps. Raw observation residuals are not positioning errors.
+- **Stop** is cooperative and takes effect between epoch updates. Completed curves stay available, but a stopped partial run is not labeled a complete experiment.
+- After completion, click **Open full diagnostics** for iteration diagnostics, replay and the existing exports. Real-data scene enlargements are optional and off by default, keeping the timeline visible.
+
+Live curves and batch results use the same solver generators. Solver timings exclude the time spent yielding to the other method and the live viewer. The total time you wait also includes visualization and data loading, so it should not be used as a controlled solver benchmark.
+
+## Cauchy and Tukey initialization
+
+Their fixed-scale weights can nearly vanish when the initial state error is much larger than the measurement noise. Tukey has exactly zero weight outside its cutoff. This is a property of redescending losses, not a reason to replace their formulas with Huber or invent a nonzero weight floor.
+
+The UI remembers a separate target scale for each kernel. Its initial suggestions are 2.385 for Cauchy and 4.685 for Tukey, following the conventional tuning constants documented by [EViews](https://help.eviews.com/content/robustreg-Background.html) and [statsmodels](https://www.statsmodels.org/stable/generated/statsmodels.robust.norms.TukeyBiweight.html). Huber retains the previous UI default of 1. These are editable starting points, not calibrated sensor noise or universal optimal settings. Applying the same cutoff of 1 to all three losses does not give them comparable rejection strength.
+
+The method cards now expose **Gradual scale** for Cauchy and Tukey, enabled by default in the UI. The broad-to-target strategy follows the [Ceres loss-scale continuation guidance](https://ceres-solver.readthedocs.io/latest/nnls_modeling.html#lossfunctionwrapper). Our explicit starting-scale choices are twice the median absolute whitened residual for Cauchy and four times the maximum for Tukey. The latter keeps all first-step weights at least `(15/16)^2`. These choices are an initialization policy, not statistical detection thresholds.
+
+Within a multi-update epoch, scales decrease geometrically to the selected target on the last allowed update. A single-update rEKF uses the broad scale for that update and recomputes it at the next epoch. Nominal measurement covariance is never changed, and actual scales are saved in each iteration trace. The linked Re-FGO uses the same schedule and retains both QR marginalizations. SW-FGO derives its schedule from active measurement factors.
+
+Disable Gradual scale to reproduce the original fixed-scale estimator. It remains off by default in the core configuration and article scripts. Continuation changes the intermediate robust objective, and cannot guarantee the global optimum or that one kernel will win on every recording. A very narrow target cutoff or inadequate initialization can still reject useful observations.
 
 ## Read and export results
 

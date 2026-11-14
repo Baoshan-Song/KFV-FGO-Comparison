@@ -41,6 +41,19 @@ class ColabModulesTests(unittest.TestCase):
         self.assertEqual(ui.right.window.value,1)
         self.assertTrue(ui.right.window.disabled)
 
+    def test_kernel_scales_are_remembered_and_matched(self):
+        ui=ComparisonUI('KFV vs FGO')
+        ui.left.method.value='riEKF'
+        ui.left.kernel.value='tukey'
+        self.assertAlmostEqual(ui.left.delta.value,4.685)
+        self.assertEqual(ui.left.delta.value,ui.right.delta.value)
+        ui.left.delta.value=6.
+        ui.left.kernel.value='cauchy'
+        self.assertAlmostEqual(ui.left.delta.value,2.385)
+        ui.left.kernel.value='tukey'
+        self.assertEqual(ui.left.delta.value,6.)
+        self.assertEqual(ui.right.delta.value,6.)
+
     def test_all_modules_share_inputs_and_noise_in_both_sources(self):
         for module,methods in [('KFV vs KFV',('EKF','riEKF')),
                                ('KFV vs FGO',('iEKF','Re-FGO')),

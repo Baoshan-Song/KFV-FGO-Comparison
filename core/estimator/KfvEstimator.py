@@ -6,10 +6,10 @@ from config.config import convert_kfv_to_fgo, motion, motion_jacobian, range_mea
 
 
 class KfvEstimator(Estimator):
-	def run(self):
+	def iter_epochs(self):
 		if hasattr(self.data, "get_measurement"):
-			from .real_data import run_kfv
-			return run_kfv(self.config, self.data)
+			from .real_data import iter_kfv
+			return (yield from iter_kfv(self.config, self.data))
 		started = perf_counter()
 		cfg = self.config.kfv
 		count = self.data["num_steps"]
@@ -31,12 +31,16 @@ class KfvEstimator(Estimator):
 						 range_jacobian, cfg.r)
 			if cfg.mode == "EKF": result = methods[cfg.mode](*arguments)
 			elif cfg.mode == "iEKF": result = methods[cfg.mode](*arguments, cfg.max_iteration, cfg.threshold_iteration)
-			elif cfg.mode == "rEKF": result = methods[cfg.mode](*arguments, cfg.robust_kernel, cfg.robust_delta)
+			elif cfg.mode == "rEKF": result = methods[cfg.mode](*arguments, cfg.robust_kernel, cfg.robust_delta, cfg.robust_continuation)
 			else: result = methods[cfg.mode](*arguments, cfg.max_iteration, cfg.threshold_iteration,
-											 cfg.robust_kernel, cfg.robust_delta)
+											 cfg.robust_kernel, cfg.robust_delta, cfg.robust_continuation)
 			state, covariance, predicted[:, index], _, debug_info[index] = result
 			covariances[index] = covariance
 			estimates[:, index] = state
+			suspended = perf_counter()
+			yield dict(epoch=index, state=state.copy(), predicted=predicted[:, index].copy(),
+				diagnostic=debug_info[index])
+			started += perf_counter() - suspended
 		result = {"X": estimates, "X_online": estimates.copy(), "X_pred": predicted,
 				"covariances": covariances, "debug_info": debug_info, "epoch_diagnostics": debug_info}
 		return self._simulation_output(result, started)

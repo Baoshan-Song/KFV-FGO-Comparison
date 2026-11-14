@@ -12,10 +12,10 @@ class FgoEstimator(Estimator):
         self.data = data
         self.profile_stages = profile_stages
 
-    def run(self):
+    def iter_epochs(self):
         if hasattr(self.data, "get_measurement"):
-            from .real_data import run_fgo
-            return run_fgo(self.config, self.data)
+            from .real_data import iter_fgo
+            return (yield from iter_fgo(self.config, self.data))
         started = perf_counter()
         cfg = self.config.fgo
         n = self.data["num_steps"]
@@ -116,6 +116,11 @@ class FgoEstimator(Estimator):
                 if graph.win_size > cfg.window_size:
                     with timing.measure("marginalize_ms", i):
                         graph.marginalize(i - cfg.window_size)
+
+            suspended = perf_counter()
+            yield dict(epoch=i-1, state=online[:, i-1].copy(),
+                       predicted=predicted[:, i-1].copy(), diagnostic=diagnostics[i-1])
+            started += perf_counter() - suspended
 
         # 3. output
         est_positions = np.column_stack([s.value for s in graph.states])

@@ -4,6 +4,9 @@ from config.config import range_measurement, range_jacobian
 
 
 class RangeFactor(Factor):
+	def robust_residual(self):
+		return np.array([(self.z['range'] - range_measurement(self.states[0].value, self.z['emitter'])) * np.sqrt(self.omega[0, 0])])
+
 	def evaluate(self):
 		measurement = self.z["range"]
 		emitter = self.z["emitter"]
@@ -24,7 +27,7 @@ class RangeFactor(Factor):
 			jacobian = range_jacobian(self.states[0].value, emitter)
 		weight = robust_sqrt_weight(
 			abs(residual) * np.sqrt(float(self.omega[0, 0])),
-			self.z["loss_type"], self.z["loss_delta"])
+			self.z["loss_type"], getattr(self, "loss_scale", self.z["loss_delta"]))
 		self.A, self.b = whiten(weight * jacobian[None, :], weight * residual, self.omega)
 		return self
 

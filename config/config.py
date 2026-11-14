@@ -23,6 +23,7 @@ class FilterConfig:
     threshold_iteration: float = 1e-6
     robust_kernel: str = "huber"
     robust_delta: float = 2.0
+    robust_continuation: bool = False
     window_size: int = 1
 
 
@@ -40,6 +41,7 @@ class FgoConfig:
     threshold_iteration: float = 1e-6
     robust_kernel: str = "huber"
     robust_delta: float = 2.0
+    robust_continuation: bool = False
     window_size: int = 1
     imitate_kfv: bool = True
     autodiff: bool = False
@@ -79,6 +81,7 @@ def _config_to_dict(config: Config) -> dict:
             "thres_iteration": config.kfv.threshold_iteration,
             "robust_kernel": config.kfv.robust_kernel,
             "robust_delta": config.kfv.robust_delta,
+            "robust_continuation": config.kfv.robust_continuation,
             "window_size": config.kfv.window_size,
         },
         "FGO": {
@@ -92,6 +95,7 @@ def _config_to_dict(config: Config) -> dict:
             "thres_iteration": config.fgo.threshold_iteration,
             "robust_kernel": config.fgo.robust_kernel,
             "robust_delta": config.fgo.robust_delta,
+            "robust_continuation": config.fgo.robust_continuation,
             "window_size": config.fgo.window_size,
             "imitate_KFV": config.fgo.imitate_kfv,
             "autoDiff": config.fgo.autodiff,
@@ -122,6 +126,7 @@ def load_config(path: str | Path) -> Config:
         threshold_iteration=k.get("thres_iteration", 1e-6),
         robust_kernel=k.get("robust_kernel", "huber"),
         robust_delta=k.get("robust_delta", 2.0),
+        robust_continuation=k.get("robust_continuation", False),
         window_size=k.get("window_size", 1),
     )
     fgo = FgoConfig(
@@ -135,6 +140,7 @@ def load_config(path: str | Path) -> Config:
         threshold_iteration=f.get("thres_iteration", 1e-6),
         robust_kernel=f.get("robust_kernel", "none"),
         robust_delta=f.get("robust_delta", 2.0),
+        robust_continuation=f.get("robust_continuation", False),
         window_size=f.get("window_size", 1),
         imitate_kfv=f.get("imitate_KFV", False),
         autodiff=f.get("autoDiff", False),
@@ -180,6 +186,7 @@ def convert_kfv_to_fgo(config: Config) -> Config:
         threshold_iteration=k.threshold_iteration,
         robust_kernel=k.robust_kernel,
         robust_delta=k.robust_delta,
+        robust_continuation=k.robust_continuation,
         window_size=k.window_size,
         imitate_kfv=True,
         autodiff=False,

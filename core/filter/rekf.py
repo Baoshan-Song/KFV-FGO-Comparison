@@ -8,8 +8,8 @@ def _weight(residual, loss_type, delta):
 
 
 def rekf(x_prev, p_prev, dt, omega, f, F, Q, measurements, emitters, h, H,
-         r_base, loss_type, delta):
+         r_base, loss_type, delta, continuation=False):
     return iterated_update(x_prev, p_prev, dt, omega, f, F, Q, measurements,
-                           emitters, h, H, r_base, 1, 0., loss_type, delta)
+                           emitters, h, H, r_base, 1, 0., loss_type, delta, continuation)
 
 __all__ = ['rekf']

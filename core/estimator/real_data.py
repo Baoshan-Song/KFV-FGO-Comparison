@@ -31,10 +31,14 @@ class GnssFactor(Factor):
         super().__init__([state])
         self.observe, self.cfg = observe, cfg
 
+    def robust_residual(self):
+        raw, _, covariance, _ = self.observe(self.states[0].value)
+        return raw / np.sqrt(np.diag(covariance))
+
     def evaluate(self):
         raw, H, covariance, self.ids = self.observe(self.states[0].value)
         sigma = np.sqrt(np.diag(covariance))
-        weights = robust_weights(raw/sigma, self.cfg.robust_kernel, self.cfg.robust_delta)
+        weights = robust_weights(raw/sigma, self.cfg.robust_kernel, getattr(self, "loss_scale", self.cfg.robust_delta))
         scale = np.sqrt(weights)/sigma
         self.A, self.b = scale[:, None]*H, scale*raw
         return self
@@ -42,7 +46,7 @@ class GnssFactor(Factor):
     def observation_diagnostic(self):
         raw, _, covariance, _ = self.observe(self.states[0].value)
         return loss_cost(raw/np.sqrt(np.diag(covariance)),
-                         self.cfg.robust_kernel, self.cfg.robust_delta), raw
+                         self.cfg.robust_kernel, getattr(self, "loss_scale", self.cfg.robust_delta)), raw
 
 
 def allocate(config, data, cfg):
@@ -65,7 +69,7 @@ def finish(config, data, solver, start, online, predicted, covariance, diagnosti
         trajectory_semantics='X_online is causal; X is the final retained graph history')
 
 
-def run_kfv(config, data):
+def iter_kfv(config, data):
     start = perf_counter()
     cfg = config.kfv
     state, online, predicted, covariances, diagnostics = allocate(config, data, cfg)
@@ -82,13 +86,17 @@ def run_kfv(config, data):
         predicted[:, k] = xp
         state, covariance, diagnostics[k] = observation_update(
             xp, pp, lambda x: data.linearize(x, k), iterations,
-            cfg.threshold_iteration, loss, cfg.robust_delta)
+            cfg.threshold_iteration, loss, cfg.robust_delta, cfg.robust_continuation)
         online[:, k], covariances[k] = state, covariance
         epoch_ms[k] = (perf_counter()-epoch_start)*1000
+        suspended = perf_counter()
+        yield dict(epoch=k, state=online[:, k].copy(), predicted=predicted[:, k].copy(),
+                   diagnostic=diagnostics[k])
+        start += perf_counter() - suspended
     return finish(config, data, 'KfvEstimator', start, online, predicted, covariances, diagnostics, epoch_ms)
 
 
-def run_fgo(config, data):
+def iter_fgo(config, data):
     start = perf_counter()
     cfg = config.fgo
     x0, online, predicted, covariances, diagnostics = allocate(config, data, cfg)
@@ -127,6 +135,24 @@ def run_fgo(config, data):
             graph.marginalize(k+1-cfg.window_size)
         # Include both QR marginalizations and diagnostic collection.
         epoch_ms[k] = (perf_counter()-epoch_start)*1000
+        suspended = perf_counter()
+        yield dict(epoch=k, state=online[:, k].copy(), predicted=predicted[:, k].copy(),
+                   diagnostic=diagnostics[k])
+        start += perf_counter() - suspended
     final = np.column_stack([state.value for state in graph.states])
     return finish(config, data, 'FgoEstimator', start, online, predicted,
                   covariances, diagnostics, epoch_ms, final)
+
+
+def _complete(stream):
+    while True:
+        try: next(stream)
+        except StopIteration as completed: return completed.value
+
+
+def run_kfv(config, data):
+    return _complete(iter_kfv(config, data))
+
+
+def run_fgo(config, data):
+    return _complete(iter_fgo(config, data))

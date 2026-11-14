@@ -86,13 +86,18 @@ def run_article_comparison(data, base=None, warmup=True):
 
 
 def run_real_methods(data, methods):
+    results=[]
+    for item in methods:
+        print('Running',item['name'],flush=True)
+        results.append((KfvEstimator if item['kind']=='kfv' else FgoEstimator)(item['config'],data).run())
+    return assemble_real_experiment(data,methods,results)
+
+
+def assemble_real_experiment(data, methods, results):
     truth_path=data.path/'gt.txt'
     truth=load_ground_truth(truth_path) if truth_path.exists() else None
     estimators=[]
-    for item in methods:
-        print('Running',item['name'],flush=True)
-        result=(KfvEstimator if item['kind']=='kfv' else FgoEstimator)(item['config'],data).run()
-        # All viewer metrics are causal, including SW-FGO.
+    for item,result in zip(methods,results):
         causal={**result,'X':result['X_online'][:,1:],'timestamps':result['timestamps'][1:]}
         report, errors = evaluate_ground_truth(causal,truth) if truth else (None,None)
         if report is not None:
@@ -119,13 +124,19 @@ def real_payload(experiment):
     for item in items:
         result=item['result']; x=result['X_online']
         trajectories.append(((x[:3].T-origin)@rotation).T)
-        traces=deepcopy(result['epoch_diagnostics'])
+        # The viewer needs iteration paths, not every epoch's dense gain and
+        # innovation matrices. Keep full diagnostics in the solver result.
+        traces=[]
         counts=np.full(n,np.nan)
-        for k,record in enumerate(traces):
-            if record is None:continue
+        for k,record in enumerate(result['epoch_diagnostics']):
+            if record is None:
+                traces.append(None)
+                continue
             counts[k]=len(record['postfit_ids'])
-            for step in record['iteration_trace']:
+            compact={key:deepcopy(record[key]) for key in ('iteration_trace','iterations','converged')}
+            for step in compact['iteration_trace']:
                 step['state'][:3]=(step['state'][:3]-origin)@rotation
+            traces.append(compact)
         diagnostics.append(traces)
         sat_counts.append(counts)
         bias.append(x[6:9])

@@ -2,7 +2,11 @@
 import ipywidgets as W
 from IPython.display import display, clear_output
 
-from colab_comparison import MODULES, FILTERS, GRAPHS, run_comparison
+from colab_comparison import MODULES, FILTERS, GRAPHS, prepare_comparison
+from live_comparison import LiveComparison, run_interleaved
+from threading import Thread, Event
+from pathlib import Path
+from datetime import datetime
 from experiment_common import animate_pair
 
 
@@ -58,8 +62,11 @@ class MethodCard:
         self.iterations = _slider(5, 1, 20, integer=True)
         self.kernel = W.Dropdown(options=['none','huber','cauchy','tukey'], value='huber')
         self.delta = _log(1., -2, 2)
+        self._kernel_scales = {'none':1., 'huber':1., 'cauchy':2.385, 'tukey':4.685}
         self.window = _slider(5, 1, 50, integer=True)
         self.numerical = W.Checkbox(value=False, description='Numerical Jacobian', indent=False)
+        self.continuation = W.Checkbox(value=True, description='Gradual scale', indent=False)
+        self.continuation_row = _row('↘','Robust initialization','Starts broad, then decreases to the target over multiple updates. One-update rEKF uses the broad scale.',self.continuation)
         self.note = W.HTML()
         self._updating = False
         self._saved_iterations, self._saved_kernel, self._saved_window = 5, 'huber', 5
@@ -71,7 +78,7 @@ class MethodCard:
         rows = [_heading('A' if side == 'left' else 'B', f'{side.title()} method',
                          'Controls follow the selected estimator.'),
                 _row('⇄','Estimator','Choose a filter variant' if kind == 'kfv' else 'Recursive or sliding-window graph',self.method),
-                self.iteration_row,self.kernel_row,self.delta_row]
+                self.iteration_row,self.kernel_row,self.delta_row,self.continuation_row]
         if kind == 'fgo': rows += [self.window_row,self.numerical_row]
         rows += [self.note]
         self.widget = _card(rows,'49%').add_class('kfv-card-blue' if side == 'left' else 'kfv-card-red')
@@ -82,9 +89,12 @@ class MethodCard:
     def _changed(self, _):
         self.apply_rules()
 
-    def _kernel_changed(self, _):
+    def _kernel_changed(self, change):
         if not self._updating:
+            self._kernel_scales[change['old']] = self.delta.value
+            self.delta.value = self._kernel_scales[change['new']]
             self.delta.disabled = self.kernel.disabled or self.kernel.value == 'none'
+            self.continuation_row.layout.display = '' if self.kernel.value in ('cauchy','tukey') else 'none'
 
     def apply_rules(self, source='Simulation'):
         if self._updating:return
@@ -101,6 +111,7 @@ class MethodCard:
             self.kernel.value = 'none' if ordinary else self._saved_kernel
             self.kernel.disabled = ordinary
             self.delta.disabled = ordinary or self.kernel.value == 'none'
+            self.continuation_row.layout.display = '' if self.kernel.value in ('cauchy','tukey') else 'none'
             self.window.value = 1 if recursive else self._saved_window
             self.window.disabled = recursive
             self.numerical_row.layout.display = '' if source == 'Simulation' else 'none'
@@ -116,7 +127,7 @@ class MethodCard:
     def values(self):
         return dict(method=self.method.value,iterations=self.iterations.value,
                     kernel=self.kernel.value,delta=self.delta.value,window=self.window.value,
-                    numerical_jacobian=self.numerical.value)
+                    numerical_jacobian=self.numerical.value,continuation=self.continuation.value and self.kernel.value in ('cauchy','tukey'))
 
 
 class ComparisonUI:
@@ -175,21 +186,27 @@ class ComparisonUI:
                                     titles=['σ Process uncertainty','◉ GNSS quality gates','▣ Custom data and time'])
         self.data_note=W.HTML()
         self.run=W.Button(description='Run comparison',icon='play',button_style='primary',layout=W.Layout(width='180px'))
-        self.status=W.HTML('<span class="kfv-note">Ready. Results appear below after calculation.</span>')
+        self.status=W.HTML('<span class="kfv-note">Ready. Plots update as each method computes.</span>')
         self.output=W.Output(layout=W.Layout(width='100%'))
+        self.live_container=W.VBox()
+        self.details=W.Button(description='Open full diagnostics',icon='line-chart',disabled=True,layout=W.Layout(width='210px'))
+        self.details.on_click(self._show_details)
+        self.stop=W.Button(description='Stop',icon='stop',disabled=True,layout=W.Layout(width='90px'))
+        self.stop_event=Event()
+        self.stop.on_click(lambda _:self.stop_event.set())
         self.widget=W.VBox([W.HTML(STYLE),_heading('⇄',module,'Choose data, configure the two methods, then run.'),
             _card([_heading('◉','Data source'),self.source,self.dataset_row,self.data_note]),
             W.HBox([self.left.widget,self.right.widget],layout=W.Layout(justify_content='space-between',flex_flow='row wrap')),
             self.match_row,_heading('⚙','Shared data settings','Optional. Defaults are ready to run.'),
             self.sim_panel,self.real_panel,
-            W.HBox([self.run,self.status],layout=W.Layout(align_items='center',margin='14px 0 4px')),
-            W.HTML('<div class="kfv-note">Stop a calculation with Colab’s cell stop button. Play / Pause in the result viewer controls replay only.</div>'),
-            self.output],layout=W.Layout(width='100%')).add_class('kfv-workspace')
+            W.HBox([self.run,self.stop,self.status],layout=W.Layout(align_items='center',margin='14px 0 4px')),
+            W.HTML('<div class="kfv-note">Stop ends after the current epoch. Drag the live time slider to inspect completed results.</div>'),
+            self.live_container,self.details,self.output],layout=W.Layout(width='100%')).add_class('kfv-workspace')
         self._syncing=False
         self.source.observe(self._sync,names='value')
         self.match.observe(self._sync,names='value')
         for card in (self.left,self.right):
-            for control in (card.method,card.iterations,card.kernel,card.delta):control.observe(self._sync,names='value')
+            for control in (card.method,card.iterations,card.kernel,card.delta,card.continuation):control.observe(self._sync,names='value')
         self.run.on_click(self._run)
         self._sync()
 
@@ -209,31 +226,66 @@ class ComparisonUI:
             self.match.disabled=not allowed
             if not allowed:self.match.value=False
             if self.match.value:
-                for key in ('iterations','kernel','delta'):
+                for key in ('iterations','kernel','delta','continuation'):
                     control=getattr(self.right,key);control.value=getattr(self.left,key).value;control.disabled=True
                 self.right.numerical.disabled=True
                 self.right.numerical.value=False
                 self.right.note.value='<div class="kfv-note">Linked to the effective filter settings on the left. Re-FGO is solved independently.</div>'
-            else:self.right.numerical.disabled=False
+            else:
+                self.right.numerical.disabled=False
+                self.right.continuation.disabled=False
         finally:self._syncing=False
 
-    def _run(self, _):
-        self.run.disabled=True
-        self.status.value='<b>Running…</b>'
+    def _show_details(self, _):
+        if not hasattr(self,'experiment'):return
         with self.output:
             clear_output(wait=True)
+            display(animate_pair(self.experiment,interval=80))
+
+    def _run(self, _):
+        if self.run.disabled:return
+        self.run.disabled=True;self.stop.disabled=False;self.details.disabled=True;self.stop_event.clear()
+        self.status.value='<b>Loading observations…</b>'
+        with self.output:clear_output(wait=False)
+        self.live_container.children=[]
+        # Snapshot configuration before the worker starts. Live controls stay responsive.
+        args=(self.module,self.source.value,self.left.values(),self.right.values())
+        options=dict(simulation={k:v.value for k,v in self.sim.items()},
+                     real={k:v.value for k,v in self.real.items()},match_filter_settings=self.match.value)
+        controls=[self.source,self.dataset,self.match,*self.sim.values(),*self.real.values()]
+        for card in (self.left,self.right):
+            controls += [card.method,card.iterations,card.kernel,card.delta,card.window,card.numerical,card.continuation]
+        previous={id(c):(c,c.disabled) for c in controls}
+        for control,_ in previous.values():control.disabled=True
+        def worker():
+            live=None
             try:
-                self.experiment=run_comparison(self.module,self.source.value,self.left.values(),self.right.values(),
-                    simulation={k:v.value for k,v in self.sim.items()},real={k:v.value for k,v in self.real.items()},
-                    match_filter_settings=self.match.value)
-                display(animate_pair(self.experiment,interval=80))
-                self.status.value='<b>Complete.</b> <span class="kfv-note">Inspect the plots or export SVG / JSON below.</span>'
-            except KeyboardInterrupt:
-                self.status.value='<b>Stopped.</b>'
+                data,left,right=prepare_comparison(*args,**options)
+                if self.stop_event.is_set():
+                    self.status.value='<b>Stopped during loading.</b>';return
+                live=LiveComparison(data,[left,right]);self.live_container.children=[live.widget]
+                self.status.value='<b>Computing both methods…</b>'
+                experiment=run_interleaved(data,[left,right],live.receive,self.stop_event)
+                live.finish(stopped=experiment is None)
+                if experiment is None:
+                    self.status.value='<b>Stopped.</b> Completed epochs remain available above.';return
+                self.experiment=experiment
+                self.status.value='<b>Saving completed results…</b>'
+                if args[1]=='Real GNSS/INS':
+                    from real_experiment import save_real_experiment
+                    folder=Path('artifacts/colab')/self.module.lower().replace(' ','-')/datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+                    save_real_experiment(experiment,folder)
+                self.status.value='<b>Complete.</b> Scrub the live timeline or open full diagnostics below.'
+                self.details.disabled=False
             except Exception as error:
-                self.status.value='<b>Check settings.</b>'
-                print(f'{type(error).__name__}: {error}')
-            finally:self.run.disabled=False
+                if live is not None:live.finish(stopped=True)
+                self.status.value='<b>Calculation stopped with an error.</b>'
+                self.output.append_stdout(f'{type(error).__name__}: {error}\n')
+            finally:
+                for control,disabled in previous.values():control.disabled=disabled
+                self.run.disabled=False;self.stop.disabled=True;self._sync()
+        self.worker=Thread(target=worker,daemon=True)
+        self.worker.start()
 
 
 def comparison_ui(module):

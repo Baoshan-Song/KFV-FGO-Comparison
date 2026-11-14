@@ -31,6 +31,7 @@ def _configured_method(kind, settings, base):
         raise ValueError('Robust scale must be finite and positive')
     if kernel not in ('none', 'huber', 'cauchy', 'tukey'):
         raise ValueError(f'Unsupported robust kernel: {kernel}')
+    getattr(cfg, kind).robust_continuation = bool(settings.get('continuation', False))
     if kind == 'kfv':
         cfg.kfv.mode = name
         cfg.kfv.max_iteration = iterations

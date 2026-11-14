@@ -4,7 +4,7 @@ import numpy as np
 from scipy.linalg import qr, solve_triangular
 from .factor.RangeFactor import RangeFactor
 from config.config import range_measurement
-from ..objective import loss_cost
+from ..objective import loss_cost, continuation_start, continuation_scale
 from .factor.margin_factor import MarginFactor
 
 
@@ -81,7 +81,7 @@ class FactorGraph:
                 raw = factor.z["range"] - range_measurement(
                     factor.states[0].value, factor.z["emitter"])
                 objective += loss_cost(np.array([raw*np.sqrt(factor.omega[0, 0])]),
-                                       factor.z["loss_type"], factor.z["loss_delta"])
+                                       factor.z["loss_type"], getattr(factor, "loss_scale", factor.z["loss_delta"]))
                 if factor.states[0] is self.active_states[-1]:
                     ranges.append(raw)
             elif hasattr(factor, "observation_diagnostic"):
@@ -95,7 +95,7 @@ class FactorGraph:
         return dict(iteration=iteration,
                     state=self.active_states[-1].value.copy(),
                     measurement_residual_norm_m=float(np.linalg.norm(ranges)),
-                    objective=float(objective))
+                    objective=float(objective), robust_scale=getattr(self, "effective_scale", self.config.robust_delta))
 
     def estimate(self):
         """Solve each linearized problem directly, without squaring J's condition."""
@@ -105,9 +105,19 @@ class FactorGraph:
         if self.config.max_iteration < 1:
             raise ValueError("max_iteration must be positive")
         state_size = len(active[0].value)
+        staged = getattr(self.config, 'robust_continuation', False) and self.config.robust_kernel in ('cauchy', 'tukey')
+        measurements = [f for f in self.factors if f.status != 'Margin' and hasattr(f, 'robust_residual')]
+        residuals = np.concatenate([f.robust_residual() for f in measurements]) if staged and measurements else np.array([])
+        start_scale = continuation_start(residuals, self.config.robust_kernel, self.config.robust_delta, staged)
+        self.effective_scale = start_scale
+        if staged:
+            for factor in measurements: factor.loss_scale = start_scale
         self.iteration_trace = [self._diagnostic(0)]
         self.converged = False
         for iteration in range(1, self.config.max_iteration + 1):
+            self.effective_scale = continuation_scale(start_scale, self.config.robust_delta, iteration, self.config.max_iteration)
+            if staged:
+                for factor in measurements: factor.loss_scale = self.effective_scale
             self.normal_equation()
             if self.J is None or not len(self.r):
                 break
@@ -122,6 +132,7 @@ class FactorGraph:
             self.latest_information_matrix = J.T @ J
             self.iteration_trace.append(self._diagnostic(iteration))
             self.converged = np.linalg.norm(delta)/max(len(delta), 1) < self.config.threshold_iteration
+            self.converged = self.converged and (not staged or self.effective_scale <= self.config.robust_delta)
             if self.converged:
                 break
         return self

@@ -29,12 +29,7 @@ def whiten(A, b, omega):
 
 
 def robust_sqrt_weight(residual, loss_type, delta):
-	value = abs(float(residual))
-	kind = loss_type.lower()
-	if kind == "huber": return 1.0 if value <= delta else np.sqrt(delta / value)
-	if kind == "cauchy": return np.sqrt(1.0 / (1.0 + (value / delta) ** 2))
-	if kind == "tukey": return np.sqrt((1.0 - (value / delta) ** 2) ** 2) if value <= delta else 0.0
-	if kind == "none": return 1.0
-	raise ValueError(f"Unknown loss type: {loss_type}")
+	from core.objective import robust_weights
+	return float(np.sqrt(robust_weights(residual, loss_type, delta)))
 
 __all__ = ["Factor"]

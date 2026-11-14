@@ -16,8 +16,14 @@ class Estimator(ABC):
 			config=_config_to_dict(self.config), backend={"model":"simulated ranges"})
 		return result
 
-	@abstractmethod
 	def run(self):
+		stream = self.iter_epochs()
+		while True:
+			try: next(stream)
+			except StopIteration as completed: return completed.value
+
+	@abstractmethod
+	def iter_epochs(self):
 		raise NotImplementedError
 
 __all__ = ["Estimator"]

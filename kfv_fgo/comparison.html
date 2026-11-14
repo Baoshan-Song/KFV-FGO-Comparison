@@ -9,7 +9,7 @@
 </style>
 <div class="tabs"><button data-view="trajectory" class="active">Trajectory</button><button data-view="error">Position error</button><button data-view="residual">Residual norm</button><button data-view="iterations">Iteration path</button><button data-view="difference" class="real-only">Solver difference</button><button data-view="satellites" class="real-only">Used satellites</button><button data-view="runtime" class="article-only">Runtime boxplot</button><button class="download">Save data</button><button class="export">Save SVG</button></div>
 <div class="controls group-controls" style="display:none"><label>Comparison <select class="group" aria-label="Comparison group"></select></label></div>
-<div class="controls scene-controls" style="display:none"><label><input type="checkbox" class="scene-zooms" checked> Scene 1 / 2 enlargements</label></div>
+<div class="controls scene-controls" style="display:none"><label><input type="checkbox" class="scene-zooms"> Scene 1 / 2 enlargements</label></div>
 <div class="controls epoch-controls"><button class="play">Play</button><label>Epoch <input class="epoch" type="number" min="1" value="15" style="width:65px"></label><input class="frame" aria-label="Epoch slider" type="range" min="1" value="15" style="flex:1;min-width:180px"><label class="detail-label">Detail <input class="span" aria-label="Detail epochs" type="number" min="2" value="8" style="width:58px"> epochs</label></div>
 <div class="controls error-controls" style="display:none"><label>Error <select class="error-component"><option value="horizontal">Horizontal</option><option value="up">Up (signed)</option><option value="3d">3D</option></select></label></div>
 <div class="controls residual-controls" style="display:none"><label>Range view <select class="residual"><option value="postfit">Post-fit norm [m]</option><option value="prefit">Innovation norm [m]</option><option value="truth">Truth measurement-error norm [m]</option></select></label><label class="residual-scale-label">Axis <select class="residual-scale"><option value="linear">Linear</option><option value="log">Logarithmic</option></select></label></div>
@@ -180,6 +180,7 @@ function render(){
  const maxiter=Math.max(1,...curves.flat().map(v=>v[0])),maximum=Math.max(.001,...curves.flat().map(v=>v[1]));
  const q=panel(1,[0,maxiter,0,maximum*1.08],'(b) Iteration convergence','Iteration',field==='objective'?'Objective':'Residual norm [m]');content+=q.s;curves.forEach((v,i)=>content+=series(q,v,styles[i]));
  caption=data.names.map((n,i)=>{const d=data.diagnostics[i][k];return `${n}: ${d.iterations} updates, ${d.converged?'step tolerance reached':'iteration budget reached'}`;}).join('. ')+(data.real?'. Local East/North update paths use the actual states at each iteration.':'. Grey contours show the current range norm only. They are not contours of the full posterior objective.');
+ if(traces.some(t=>new Set(t.map(v=>v.robust_scale).filter(finite)).size>1))caption+=' Gradual scale is enabled. The robust objective changes with scale during this update; its successive values are not one fixed objective.';
  }else{
  const field=$('.residual').value,component=$('.error-component').value;
  let curves=data.trajectories.map((t,i)=>all.map(k=>{
