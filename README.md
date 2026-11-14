@@ -1,133 +1,94 @@
 # KFV–FGO Comparison
 
-**Open Colab, choose a comparison, and press ▶. No installation on your computer is needed.**
+**Open Colab, choose a comparison, and run. No installation on your computer is needed.**
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Baoshan-Song/KFV-FGO-Comparison/blob/main/KFV-FGO-Colab.ipynb)
 
-Compare Kalman filter variants (KFV), recursive factor graph optimization (Re-FGO), and sliding-window FGO on a range simulation or **real GNSS/INS measurements**. Change parameters in the form, then inspect trajectories, position errors, residuals and individual nonlinear updates in the interactive viewer. Figures export as editable SVGs.
+## Three modules, two data sources
 
-## Start in three steps
+1. Run **Setup** once to prepare the cloud session.
+2. Run the cell for **KFV vs KFV**, **KFV vs FGO**, or **FGO vs FGO** to open its workspace.
+3. Choose **Simulation** or **Real GNSS/INS**. Configure the two method cards, then click **Run comparison**.
+4. Inspect the plots and export with **Save SVG** or **Save data**.
 
-1. Click **Open in Colab** above. Sign in to Google if Colab asks.
-2. Run **Setup** once. It prepares the cloud session and loads the code automatically. Leave its defaults unchanged.
-3. Run a comparison cell. For the real-data example, go directly to **4. Real GNSS/INS** and choose a preset, or run **5. Inside GNSS** for the article’s two three-method comparisons. The selected medium, deep or harsh recording loads automatically, with no upload or separate download step.
+Both data sources are available inside every module. There is no separate real-data page or article-specific module. Stop calculations using Colab's cell stop button. Play / Pause in the result viewer controls replay only. Save outputs before the cloud session expires.
 
-You can rerun just the comparison cell after changing its parameters. There is no need to rerun Setup for each experiment. The runtime's stop button interrupts a calculation. Save results before the Colab session expires.
-
-## What can I compare?
-
-| Comparison | What it reveals |
+| Module | Comparisons |
 |---|---|
-| EKF ↔ iEKF | Effect of repeated measurement linearization |
-| EKF ↔ rEKF, iEKF ↔ riEKF | Effect of robust measurement weighting |
-| KFV ↔ matched Re-FGO | Whether independent gain-based and graph-based updates retain the same information |
-| Re-FGO ↔ SW-FGO | Effect of retaining and relinearizing past states |
-| SW-FGO ↔ SW-FGO | Effect of window size, iteration budget or robust loss |
+| KFV vs KFV | EKF, iEKF, rEKF and riEKF, independently configured |
+| KFV vs FGO | Any filter variant against Re-FGO or SW-FGO |
+| FGO vs FGO | Re-FGO or SW-FGO on either side, with independent settings |
 
-**KFV modes.** EKF uses one update and ordinary least squares. iEKF repeats the measurement update with a fixed prediction. rEKF uses one robust update. riEKF combines iteration and robust weighting.
+Re-FGO is an independent graph solver with two QR marginalizations. It never substitutes a precomputed filter estimate as a factor. Setting an ordinary sliding window to one does not implement the same procedure.
 
-**Re-FGO is an independent graph solver.** It eliminates the previous state before the measurement update, then QR-compresses the solved prior–measurement system. It never calls the filter or substitutes a precomputed filter result as a factor. Merely setting a sliding window to one is not the same algorithm.
+## Method cards
 
-### Real-data presets
+Each parameter has an icon, a short explanation and a selection or slider. Inapplicable controls are greyed out and show their effective values.
 
-| Preset | Left / blue | Right / red | Question |
+| Filter | Iterations | Kernel | Robust scale |
 |---|---|---|---|
-| Matched EKF | EKF | Re-FGO configured as EKF | Do single-update solutions coincide? |
-| Matched riEKF | riEKF | Re-FGO configured as riEKF | Does correspondence hold with iteration and robust loss? |
-| EKF vs riEKF | EKF | riEKF | What changes when iteration and robust weighting are enabled together? |
-| Re-FGO vs SW-FGO | Robust Re-FGO | Robust sliding-window FGO | What does re-estimating past states change? |
-| Custom | Your choice | Your choice | Compare any two available methods |
+| EKF | Fixed at **1** | Fixed at **none** | Disabled |
+| iEKF | Adjustable | Fixed at **none** | Disabled |
+| rEKF | Fixed at **1** | Adjustable | Enabled for a robust kernel |
+| riEKF | Adjustable | Adjustable | Enabled for a robust kernel |
 
-The method selectors below the preset apply **only to Custom**. Other presets set their methods explicitly. The notebook prints the effective configurations in the saved JSON.
+- **Iterations** is the maximum nonlinear updates per epoch. Repetition does not add measurements.
+- **Kernel** selects none, Huber, Cauchy or Tukey and operates on whitened residuals.
+- **Robust scale** is dimensionless, not metres. Smaller values downweight more measurements.
+- **Window** sets the states retained after an SW-FGO solve. Re-FGO fixes it at one.
+- **Numerical Jacobian** is simulation-only. Off uses analytic derivatives; on uses central finite differences.
+- **Match the filter settings**, in KFV vs FGO, copies the filter's effective prior, noise, iteration and loss settings to Re-FGO. The linked controls are disabled. Selecting SW-FGO turns the link off. Disable the link to tune Re-FGO independently.
 
-## Real GNSS/INS parameters
+For an equivalence check, use KFV vs FGO with the link enabled. To study iteration, compare EKF with iEKF in KFV vs KFV. To study retained history, compare Re-FGO with SW-FGO in FGO vs FGO while keeping their noise and loss settings matched.
 
-| Form parameter | Meaning and effect |
+## Shared data settings
+
+Only controls for the selected source are shown. Both methods use the same observations and initial conditions. Optional settings are grouped in collapsible panels.
+
+| Simulation panel | Controls |
 |---|---|
-| `dataset` | Select `medium` (the article figures), `deep`, or `harsh` (additional table results). All three are bundled. |
-| `data_directory` | Blank uses the selected UrbanNav recording. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` (or the supplied lossless `xsens_imu.npz`) in the supplied format. Optional `gt.txt` enables reference errors. A Drive path needs Drive mounted in Setup. |
-| `iterations` | Maximum nonlinear updates per epoch. Used by iEKF/riEKF and the corresponding graph mode. EKF/rEKF always perform one update. More iterations do not add new measurements. |
-| `robust_kernel` | `none` keeps ordinary least squares. `huber`, `cauchy`, and `tukey` reduce the influence of large **whitened** residuals. Non-robust filter modes ignore this setting. |
-| `robust_delta` | Dimensionless scale of the robust loss. A smaller value downweights more measurements. It is not a residual threshold in metres. |
-| `window_epochs` | States retained **after** each SW-FGO solve. An overflow epoch is optimized before the oldest state is removed. Re-FGO always retains one. Larger windows require more computation. |
-| `left_method`, `right_method` | Methods compared by the Custom preset. Each can be a KFV, Re-FGO or SW-FGO. |
-| `recursive_filter` | In Custom, determines the update count and loss convention that graph methods use. For example, `riEKF` enables iterated robust graph updates. |
-| `minimum_elevation_deg` | Optional satellite elevation cutoff. Default −90 disables the explicit gate. |
-| `minimum_snr_dbhz` | Optional signal-strength cutoff (dB-Hz). Default 0 disables the explicit gate. Nonfinite or unavailable observations are always excluded. |
-| `position_process_std_m` | Per-GNSS-interval position process standard deviation, default 0.30 m per ECEF axis. |
-| `velocity_process_std_mps` | Per-interval velocity process standard deviation, default 0.15 m/s per ECEF axis. |
-| `bias_process_std_mps2` | Per-interval body accelerometer-bias process standard deviation, default 0.01 m/s² per axis. |
-| `clock_process_std_m` | Per-interval receiver-clock-bias process standard deviation, default 100 m. |
-| `gps_minus_utc_s` | GPS–UTC offset for the recording. The bundled 2021 data uses 18 s. IMU and truth timestamps are UTC. |
+| Geometry and nominal noise | Number of states including the prior, range-emitter radius (m), nominal range standard deviation (m) |
+| Outlier simulation | Probability, mean (m) and standard deviation (m) of the second Gaussian component |
+| Initialization and repeatability | Shared X/Y initial position offsets (m), random seed |
 
-The four process standard deviations are **squared** to form diagonal `Q`. They are discrete process uncertainties, not continuous IMU noise densities. Both methods receive the same `Q`, initial state and prior. JSON configuration additionally exposes `P0`, the initial offset `errX0`, convergence tolerance and the elevation/SNR weighting coefficients. Default prior standard deviations are 5 m for position, 5 m/s for velocity, 500 m/s² for accelerometer bias and 100 m for clock bias, following the contributed experiment. These broad bias priors are experimental settings, not sensor specifications.
+The emitter radius controls measurement geometry, not satellite altitude. The nominal range standard deviation is squared to obtain variance. Outlier probability zero generates nominal noise only. Keep data settings and seed unchanged for a controlled comparison.
 
-The real model uses elevation and SNR to form a separate pseudorange variance for each observation, recomputed at each linearization. `Tref=45`, `a=30`, `A=30`, and `Fref=10` preserve the contributed weighting formula in [`GnssObservationModel`](kfv_fgo/model/gnss_ins.py). The simulation's scalar `white_sigma` does not control real GNSS weighting.
+For **Real GNSS/INS**, choose bundled UrbanNav **medium**, **deep** or **harsh**. The recording loads automatically.
 
-### What this real-data experiment estimates
-
-The medium recording contains 657 GNSS epochs, deep 438, and harsh 3348. With the initial prior excluded and no reference extrapolation, 655, 436 and 2311 epochs respectively can be scored. The other update epochs remain in the solver and runtime records. The common ten states are ECEF position (3), ECEF velocity (3), body accelerometer bias (3), and receiver clock bias (1). Pseudoranges are corrected using broadcast satellite orbits/clocks, group delay, ionosphere and troposphere models through pyRTKLIB.
-
-Attitude comes from recorded IMU/AHRS quaternions. Propagation retains the contributor's first-valid-sample Euler discretization over each GNSS interval, with constant per-interval `Q`. It does **not** integrate all high-rate IMU samples, estimate attitude/gyro bias, or resolve carrier-phase ambiguities. This is a controlled pseudorange/IMU estimator comparison, not an RTK or full strapdown INS implementation. The four-satellite minimum is a check in this supplied observation model.
-
-Truth is used only for evaluation. It is interpolated in ECEF at overlapping UTC timestamps, without extrapolation or fitted trajectory alignment. Errors and exported viewer trajectories use causal states from the current update, including for SW-FGO. The initial prior is excluded from error statistics. In medium, the raw recording has a 131 s GNSS gap between elapsed 557 and 688 s. Plots break at this gap, and time plots shade it. No simulated outage is added.
-
-## Simulation parameters
-
-Cells 1–3 retain the adjustable range/motion simulation.
-
-| Parameter | Meaning |
+| Real-data panel | Controls |
 |---|---|
-| `steps` | Number of states including the initial prior. The circular motion rate changes with this number; both solvers use the generated rate. |
-| `distance` | Radius of the fixed range-emitter arrangement (m), not a satellite altitude. Changing it changes measurement geometry. |
-| `seed` | Random realization. Keep it fixed when comparing configurations. |
-| `white_sigma` | Standard deviation of nominal range noise (m). Its square is the nominal measurement variance in both estimators. |
-| `outlier_weight` | Probability that a measurement is drawn from the second Gaussian component. 0 gives nominal Gaussian noise only. |
-| `outlier_mean`, `outlier_sigma` | Mean and standard deviation of the second component (m). |
-| `initial_error_x`, `initial_error_y` | Offset added to the simulated initial position (m). |
-| `*_iterations`, `*_kernel`, `*_delta` | Same iteration and loss meanings as above, configured separately for each side. |
-| `match_filter_settings` | In cell 2, copies the filter's effective prior, noise, iteration and loss settings into Re-FGO. Independent right-side settings are ignored while enabled. |
-| `*_imitate_kfv` | Enables two-stage Re-FGO and forces a one-state window. Disable for ordinary SW-FGO. |
-| `*_window_size` | SW-FGO retention window in epochs. |
-| `*_numerical_jacobian` | Uses central finite differences for simulation range derivatives. This is numerical differentiation, not automatic differentiation. |
+| Process uncertainty | Position, velocity, accelerometer-bias and receiver-clock standard deviations per GNSS interval; defaults 0.30 m, 0.15 m/s, 0.01 m/s² and 100 m |
+| GNSS quality gates | Optional elevation cutoff (−90° disables it) and SNR cutoff (0 disables it) |
+| Custom data and time | Optional directory and GPS–UTC offset; bundled 2021 data uses 18 s |
 
-## Read the plots and export results
+Process standard deviations are squared to form diagonal Q. They are discrete uncertainties, not continuous IMU noise densities. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` or the supplied lossless `xsens_imu.npz`. Optional `gt.txt` enables reference-error plots. Mount Drive in Setup before selecting a Drive path.
 
-Blue and red distinguish paired methods. The article comparison adds green for SW-FGO-w20. Black squares mark reference positions, crosses mark filters and open circles mark graphs. Matched solutions intentionally overlap; no artificial separation is added.
+The real model estimates ECEF position (3), ECEF velocity (3), body accelerometer bias (3) and receiver clock bias (1). It uses recorded AHRS attitude and first-valid-sample Euler propagation per GNSS interval. It is a pseudorange/IMU estimator comparison, not carrier-phase RTK or a complete strapdown INS. Observation variances depend on elevation and SNR, following the contributed model. The simulation noise controls do not affect real data.
 
-| Viewer tab/control | What it shows |
+Truth is used only for evaluation, interpolated at overlapping UTC timestamps without extrapolation or fitted trajectory alignment. Plots use causal online states, including SW-FGO. Epoch zero is the initial prior and is excluded from accuracy statistics. Missing GNSS intervals break the plotted curves.
+
+## Read and export results
+
+| View or control | Meaning |
 |---|---|
-| **Trajectory** | Complete trajectory and an equal-scale local enlargement. Real data uses East/North coordinates. |
-| **Position error** | Full interval and enlarged time interval. Real data offers horizontal magnitude, signed Up, and 3D magnitude. |
-| **Residual norm** | Post-fit `‖z−h(x[k|k])‖₂` or pre-fit/innovation `‖z−h(x[k|k−1])‖₂`, in metres. Real pseudorange residuals include the estimated receiver clock and model corrections. |
-| **Truth measurement error** | Simulation only. It cannot be inferred from real reference positions alone because the true receiver clock and propagation errors are unknown. |
-| **Iteration path** | Actual states and residual norm or objective after each iteration, including iteration 0. Real data shows local ENU paths; synthetic emitter contours are shown only in simulation. |
-| **Solver difference** | Real-data 3D separation between the two online solutions. This is not error against truth. |
-| **Runtime boxplot** | Article cell only. Two groups of measured per-epoch durations, with a logarithmic time axis. Boxes show median and interquartile range, whiskers use 1.5 IQR, and circles retain outlying timings. |
-| **Comparison group** | Article cell only. Switch between IEKF / Re-FGO / SW-FGO-w20 and R-IEKF / R-Re-FGO / R-SW-FGO-w20. |
-| **Used satellites** | Real pseudoranges actually entering each update. A downweighted range still counts as used. |
-| **Epoch / Detail / Play** | Choose the end epoch and length of the enlarged interval, or animate it. These controls do not change the calculation. |
-| **Save SVG** | Export exactly the visible figure as editable vector graphics for an article. |
-| **Save data** | Download the plotted data, diagnostics and real-data configurations as JSON. |
+| Trajectory | Full trajectory and an equal-scale local enlargement |
+| Position error | Full interval and selected detail; real data offers horizontal, signed Up and 3D error |
+| Residual norm | Current post-fit or pre-fit / innovation Euclidean norm (m), not the full graph objective |
+| Truth measurement error | Simulation-only option within the residual view |
+| Iteration path | Actual per-iteration states and residual or objective; simulation adds range contours |
+| Solver difference | Real-data 3D separation of the two online solutions, not error against truth |
+| Used satellites | Pseudoranges actually entering the real-data update; downweighted observations still count |
+| Epoch / Detail / Play | Choose and replay the enlarged interval without recalculation |
+| Scene 1 / 2 enlargements | Optional medium street-region details, shared by both methods |
+| Save SVG / Save data | Editable vector figure / plotted data and diagnostics as JSON |
 
-Epoch 0 is the initial prior, not a measurement update. A raw residual norm can grow when a robust method stops following an outlying range. Interpret it alongside position error and the used-satellite count. The full objective includes prior, motion and robust measurement costs. Objective values from different windows or losses are not directly comparable. The GUI distinguishes meeting the step tolerance from simply exhausting the iteration budget.
+Blue and red identify the left and right methods. Black squares mark truth, crosses mark filters, and open circles mark graphs. Matched estimates intentionally overlap. A robust estimate may have a larger raw residual norm while its position error is smaller. Interpret residuals with position error and used-satellite count. Objectives from different windows or losses are not directly comparable.
 
-The real-data cell also writes `artifacts/real-colab/` with a standalone HTML viewer, configuration/accuracy JSON, UTC-tagged state CSVs, and NPZ files containing states, predictions, covariances and measured per-epoch times. Download these through Colab's Files panel. `X_online` is causal. `X` is the graph's final stored history. SW-FGO covariance extraction is not enabled; its post-initial covariance entries are NaN, rather than fabricated uncertainty values.
+Real runs save HTML, configuration/accuracy JSON, UTC-tagged state CSVs and NPZ files in separate timestamped folders under `artifacts/colab/`. Download these from Colab's Files panel. NPZ contains causal states, predictions, covariances and per-epoch timings. SW-FGO covariance extraction is not enabled; unavailable entries are NaN.
 
-## Inside GNSS companion and reproduction
+## Article reproduction
 
-Run **5. Inside GNSS** after Setup. It computes two three-method comparisons on the same recording:
-
-- **Non-robust:** IEKF, Re-FGO, SW-FGO-w20.
-- **Huber:** R-IEKF, R-Re-FGO, R-SW-FGO-w20.
-
-The dataset selector defaults to medium. Both groups allow up to five updates per epoch. The robust group uses Huber scale 1 on whitened residuals. SW-FGO retains 20 states after each solve. Initialization, observations, process noise and reference evaluation are otherwise identical. `R-IEKF` is the paper label for the code's `riEKF`; `IEKF` is `iEKF`.
-
-Choose a group, then use **Trajectory** or **Position error**. For medium, **Scene 1 / 2 enlargements** shows the complete recording with two street-region details from the original scene illustration. The first passages at 1–45 s and 279–327 s are defined by the street regions and shared by all methods. Both groups use identical intervals and axis limits. Uncheck this control to choose a manual Epoch / Detail interval. **Residual norm** and **Runtime boxplot** display both groups together. The residual plot offers linear and logarithmic axes; the article uses the latter to retain large peaks while showing ordinary epochs clearly. Click **Save SVG** to export the exact vector figure. **Save data** includes all six methods, even when only one group is visible.
-
-Each timing box contains one measured duration per update (656 for medium, 437 for deep, 3347 for harsh) from a serial full recording after a discarded 25-epoch warmup. Each duration includes propagation, optimization, diagnostic collection and marginalization. Loading, reference evaluation and rendering are excluded. The initial prior is not an update. The initial window-fill epochs remain in the distribution. Colab measures its own hardware, so its timing values will differ from the paper's local run. No equal runtime or accuracy ranking is imposed.
-
-For developers, `python scripts/insidegnss_article.py --scene medium` runs exactly this six-method experiment (also accepts `deep` or `harsh`) and saves HTML/JSON/CSV/NPZ outputs under `artifacts/insidegnss-real/article-medium-w20`. The NPZ and viewer JSON contain the per-epoch timing samples. `scripts/insidegnss_real.py` retains the four pair-preset checks. All article result figures share Colab's payload and SVG renderer. The original conceptual and experimental-scene illustrations are retained in the article separately.
+The six-method Inside GNSS figures remain article outputs, outside the three-module UI. `python scripts/insidegnss_article.py --scene medium` retains ordinary and Huber comparisons with SW-FGO-w20, and also accepts deep or harsh. Solvers and the vector renderer remain shared with the interactive comparisons. This UI revision does not alter the article's figures or measured results.
 
 ## Supporting papers and citation
 

@@ -1,4 +1,4 @@
-"""Six-method Inside GNSS comparison, identical to the Colab article cell."""
+"""Offline six-method Inside GNSS figure reproduction using the shared solvers and renderer."""
 import argparse
 import json
 import os
