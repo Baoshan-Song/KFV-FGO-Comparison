@@ -6,7 +6,7 @@
 
 ## Three modules, two data sources
 
-1. Run **Setup** once to prepare the cloud session.
+1. Run **Setup** once. Code and dependencies load automatically, with no source selection needed.
 2. Run the cell for **KFV vs KFV**, **KFV vs FGO**, or **FGO vs FGO** to open its workspace.
 3. Choose **Simulation** or **Real GNSS/INS**. Configure the two method cards, then click **Run comparison**.
 4. Inspect the plots and export with **Save SVG** or **Save data**.
@@ -61,7 +61,7 @@ For **Real GNSS/INS**, choose bundled UrbanNav **medium**, **deep** or **harsh**
 | GNSS quality gates | Optional elevation cutoff (−90° disables it) and SNR cutoff (0 disables it) |
 | Custom data and time | Optional directory and GPS–UTC offset; bundled 2021 data uses 18 s |
 
-Process standard deviations are squared to form diagonal Q. They are discrete uncertainties, not continuous IMU noise densities. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` or the supplied lossless `xsens_imu.npz`. Optional `gt.txt` enables reference-error plots. Mount Drive in Setup before selecting a Drive path.
+Process standard deviations are squared to form diagonal Q. They are discrete uncertainties, not continuous IMU noise densities. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` or the supplied lossless `xsens_imu.npz`. Optional `gt.txt` enables reference-error plots. For a Drive data directory, mount Drive separately before selecting its path.
 
 The real model estimates ECEF position (3), ECEF velocity (3), body accelerometer bias (3) and receiver clock bias (1). It uses recorded AHRS attitude and first-valid-sample Euler propagation per GNSS interval. It is a pseudorange/IMU estimator comparison, not carrier-phase RTK or a complete strapdown INS. Observation variances depend on elevation and SNR, following the contributed model. The simulation noise controls do not affect real data.
 
