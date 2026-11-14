@@ -155,10 +155,20 @@ def comparison_payload(experiment):
 
 
 def animate_pair(experiment, interval=70):
+  return animate_payload(comparison_payload(experiment),interval)
+
+
+def animate_payload(data, interval=70):
   from IPython.display import HTML
-  payload = json.dumps(comparison_payload(experiment), allow_nan=False).replace("<", "\\u003c")
+  from uuid import uuid4
+  import base64, gzip
+  payload = json.dumps(data, allow_nan=False, separators=(',',':')).replace("<", "\\u003c")
+  if len(payload)>64000:
+    encoded=base64.b64encode(gzip.compress(payload.encode(),mtime=0)).decode()
+    payload=('JSON.parse(await new Response(new Blob([Uint8Array.from(atob("'+encoded+
+             '"), c=>c.charCodeAt(0))]).stream().pipeThrough(new DecompressionStream("gzip"))).text())')
   template = (Path(__file__).parent/"kfv_fgo"/"comparison.html").read_text()
-  return HTML(template.replace("__ID__", f"comparison_{id(experiment)}")
+  return HTML(template.replace("__ID__", f"comparison_{uuid4().hex}")
               .replace("__PAYLOAD__", payload).replace("__INTERVAL__", str(int(interval))))
 
 

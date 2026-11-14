@@ -17,7 +17,7 @@
 <div class="stats"></div><div class="figure"></div><div class="caption"></div>
 <details><summary>Definitions and numerical checks</summary><p>Trajectories and epoch-wise residuals use online states before later measurements can revise them. Epoch 0 is an initial prior and is not a measurement update. Range norms are unweighted Euclidean norms. The full objective includes prior, motion and the selected robust measurement loss. Its values cannot be compared across different windows or losses. The contour contains only current range measurements, not the full posterior objective. Iteration records use the same stored states as the solver.</p></details>
 <script>
-(()=>{
+(async()=>{
 const root=document.getElementById('__ID__'), fullData=__PAYLOAD__, ns='http://www.w3.org/2000/svg';
 const $=s=>root.querySelector(s), epoch=$('.epoch'), slider=$('.frame'), span=$('.span');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
@@ -210,6 +210,6 @@ $('.play').addEventListener('click',()=>{if(timer){clearInterval(timer);timer=nu
 $('.download').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(fullData)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='kfv-fgo-viewer-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 $('.export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([latestSvg],{type:'image/svg+xml'})),a=document.createElement('a');a.href=url;a.download=`kfv-fgo-${view}-epoch-${epoch.value}.svg`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 render();
-})();
+})().catch(error=>{document.getElementById('__ID__').querySelector('.caption').textContent='Cannot open diagnostics: '+error.message;});
 </script>
 </div>

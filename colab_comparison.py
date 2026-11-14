@@ -50,7 +50,8 @@ def _configured_method(kind, settings, base):
 
 
 def prepare_comparison(module, data_source, left, right, *, simulation=None,
-                       real=None, match_filter_settings=False):
+                       real=None, match_filter_settings=False, load_observations=True,
+                       progress=None, stop=None):
     """Build two independent configurations using the same observations and prior."""
     if module not in MODULES:
         raise ValueError(f'Unknown comparison module: {module}')
@@ -67,7 +68,8 @@ def prepare_comparison(module, data_source, left, right, *, simulation=None,
             raise ValueError('Nominal range noise must be finite and positive')
         base = make_config(err_x=err_x, err_y=err_y)
         base.kfv.r = base.fgo.r = sigma ** 2
-        data = make_data(**options)
+        if progress: progress('Generating simulated observations')
+        data = make_data(**options) if load_observations else None
     else:
         from kfv_fgo.data.gnss_ins import GnssImuDataset
         options = dict(real or {})
@@ -87,13 +89,12 @@ def prepare_comparison(module, data_source, left, right, *, simulation=None,
             raise ValueError('Process standard deviations must be finite and positive')
         base.kfv.q = np.diag(std ** 2)
         base = convert_kfv_to_fgo(base)
-        data = GnssImuDataset(base)
+        data = GnssImuDataset.load(base, progress=progress, stop=stop) if load_observations else None
     first, second = [_configured_method(kind, settings, base)
                      for kind, settings in zip(MODULES[module], (left, right))]
     if match_filter_settings:
         second['config'] = convert_kfv_to_fgo(first['config'])
         second['name'] = f"Re-FGO (matched {first['name']})"
-        print('Re-FGO uses the effective filter settings; independent right-side settings are ignored.')
     return data, first, second
 
 

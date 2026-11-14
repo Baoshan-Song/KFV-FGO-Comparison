@@ -182,10 +182,10 @@ def real_payload(experiment):
 
 
 def save_real_experiment(experiment, output):
-    from experiment_common import animate_pair
+    from experiment_common import animate_payload
     output=Path(output);output.mkdir(parents=True,exist_ok=True)
     payload=real_payload(experiment)
-    (output/'viewer.html').write_text('<!doctype html><meta charset="utf-8">'+animate_pair(experiment).data)
+    (output/'viewer.html').write_text('<!doctype html><meta charset="utf-8">'+animate_payload(payload).data)
     (output/'viewer-data.json').write_text(json.dumps(payload,allow_nan=False))
     summary={}
     for index,item in enumerate(experiment['estimators']):

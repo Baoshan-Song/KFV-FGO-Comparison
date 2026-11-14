@@ -74,6 +74,32 @@ class LiveComparison:
                     self.reference=(self.truth_ecef-self.origin)@self.rotation
         else:self.reference=data['true_positions'].T.copy()
         self.has_truth=np.isfinite(self.reference[1:]).any()
+        self.scalar_errors=None
+        self._controls()
+
+    @classmethod
+    def from_payload(cls,payload):
+        """Replay a verified saved result without reading RINEX or loading IMU."""
+        self=cls.__new__(cls)
+        self.data=None;self.real=bool(payload.get('real'));self.names=payload['names']
+        self.count=payload['frames'];self.dim=3 if self.real else 2
+        self.time=np.asarray(payload.get('time',np.arange(self.count)*payload['dt']),dtype=float)
+        self.gap_limit=2*float(np.median(np.diff(self.time)))
+        self.position=np.asarray(payload['trajectories'],dtype=float).transpose(0,2,1)
+        self.reference=np.asarray(payload['truth'],dtype=float).T
+        self.error=np.full_like(self.position,np.nan)
+        self.scalar_errors={key:np.array([e[key] for e in payload['errors']],dtype=float)
+                            for key in ('horizontal','up','3d')}
+        self.norms=np.full((len(self.names),2,self.count),np.nan)
+        for j,key in enumerate(('postfit','prefit')):
+            for i,values in enumerate(payload['residuals'][key]):
+                a=np.asarray(values,dtype=float);valid=np.isfinite(a).any(axis=0)
+                self.norms[i,j,valid]=np.sqrt(np.nansum(a*a,axis=0))[valid]
+        self.ready=[self.count-1]*len(self.names);self.lock=RLock();self._internal=False;self._last_render=0.
+        self.has_truth=bool(payload.get('has_truth'));self._controls();self.finish()
+        return self
+
+    def _controls(self):
         self.view=W.ToggleButtons(options=['Trajectory','Position error','Residual norm'])
         self.component=W.Dropdown(options=['Horizontal','Up','3D'] if self.real else ['Horizontal'],layout=W.Layout(width='150px'))
         self.residual=W.Dropdown(options=['Post-fit','Innovation'],layout=W.Layout(width='150px'))
@@ -129,6 +155,7 @@ class LiveComparison:
             try:
                 self.progress.value=sum(self.ready)
                 self.timeline.max=max(1,available)
+                self.timeline.min=1 if available else 0
                 if self.follow.value:self.timeline.value=available
                 k=min(self.timeline.value,available)
                 self.clock.value=f'<b>{self.time[k]:.1f} s</b> · epoch {k}'
@@ -150,6 +177,9 @@ class LiveComparison:
                 if kind=='Residual norm':
                     scalar=self.norms[:,0 if self.residual.value=='Post-fit' else 1]
                     ylabel=f'{self.residual.value} residual norm (m)'
+                elif self.scalar_errors is not None:
+                    key={'Horizontal':'horizontal','Up':'up','3D':'3d'}[self.component.value]
+                    scalar=self.scalar_errors[key];ylabel=f'{self.component.value} error (m)'
                 elif self.component.value=='Up':scalar=self.error[:,:,2];ylabel='Up error (m)'
                 elif self.component.value=='3D':scalar=np.linalg.norm(self.error,axis=2);ylabel='3D error (m)'
                 else:scalar=np.linalg.norm(self.error[:,:,:2],axis=2);ylabel='Horizontal error (m)'

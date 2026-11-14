@@ -8,10 +8,22 @@
 
 1. Run **Setup** once. Code and dependencies load automatically, with no source selection needed.
 2. Run the cell for **KFV vs KFV**, **KFV vs FGO**, or **FGO vs FGO** to open its workspace.
-3. Choose **Simulation** or **Real GNSS/INS**. Configure the two method cards, then click **Run comparison**.
+3. Choose **Simulation** or **Real GNSS/INS**. Configure the two method cards, then click **Run comparison**. **Use saved results** is on by default.
 4. Inspect the plots and export with **Save SVG** or **Save data**.
 
 Both data sources are available inside every module. There is no separate real-data page or article-specific module. The Run button starts a background calculation. Stop ends after the current epoch and keeps the completed plots. The notebook stays responsive while the worker computes. Save outputs before the cloud session expires.
+
+### Open real-data results immediately
+
+The three bundled recordings include precomputed results for all three modules' default settings, the matched Cauchy/Tukey comparisons, and Huber SW-FGO with windows of 5 and 20 states. These are complete independent solver runs, with their settings and provenance in [the preset manifest](kfv_fgo/precomputed/manifest.json).
+
+With **Use saved results** enabled, an exact match opens directly without parsing RINEX, aligning IMU, or solving again. The timeline, position errors, residuals and full iteration diagnostics remain available. The status explicitly says **Loaded saved results**. Timing values in those results describe the original solve, not the cache load or your current computer.
+
+Change a parameter and the panel computes a fresh result with live progress, then caches that completed run. Uncheck **Use saved results** to force a new calculation. Cache matching includes input-file contents, solver/evaluation source and the numerical configuration. It never substitutes a nearby setting or a different recording.
+
+Fresh real-data loading reports file reading, satellite-state computation, IMU alignment and initialization separately. Parsed observations are reused in the current session. IMU intervals use binary time indexing; this preserves the original interpolated values while avoiding repeated scans of the entire recording. Notebook widgets are updated only on the main event loop; the worker sends numerical results through a queue. Errors are displayed in the status rather than leaving a permanent loading message.
+
+To regenerate the bundled results locally, run `python scripts/precompute_colab.py --refresh`. The script uses the same public estimator paths as a fresh UI run.
 
 | Module | Comparisons |
 |---|---|

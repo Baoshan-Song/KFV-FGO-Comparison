@@ -44,13 +44,14 @@ class GnssEpoch:
 
 
 class RtklibBackend:
-    def __init__(self, obs_file, nav_file):
+    def __init__(self, obs_file, nav_file, progress=None):
         r = self.r = rtklib()
         obs, nav, sta = r.obs_t(), r.nav_t(), r.sta_t()
         self.epochs = []
         try:
             for file in (obs_file, nav_file):
                 path = Path(file).resolve()
+                if progress:progress(f'Reading {path.name}')
                 if not path.is_file():
                     raise FileNotFoundError(path)
                 # Native Windows RTKLIB requires absolute paths using backslashes.
@@ -64,6 +65,8 @@ class RtklibBackend:
                 tgd.setdefault(eph.sat, float(eph.tgd[0]) * r.CLIGHT)
             start = 0
             while start < obs.n:
+                if progress and len(self.epochs)%100==0:
+                    progress(f'Computing satellite states: {100*start/max(obs.n,1):.0f}%')
                 first = obs.data[start]
                 end = start + 1
                 while (
