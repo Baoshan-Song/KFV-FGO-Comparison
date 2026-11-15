@@ -1,190 +1,136 @@
 # KFV–FGO Comparison
 
-**Open Colab, choose a comparison, and run. No installation on your computer is needed.**
+**Compare Kalman filter variants and factor graph optimization in your browser. No local installation.**
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Baoshan-Song/KFV-FGO-Comparison/blob/main/KFV-FGO-Colab.ipynb)
 
-## Three modules, two data sources
+### Supporting papers
 
-1. Run **Setup** once. Code and dependencies load automatically, with no source selection needed.
-2. Run the cell for **KFV vs KFV**, **KFV vs FGO**, or **FGO vs FGO** to open its workspace.
-3. Choose **Simulation** or **Real GNSS/INS**. Configure the two method cards, then click **Run comparison**. **Use saved results** is on by default.
-4. Inspect the plots and export with **Save SVG**.
+1. B. Song, R. Xu, Z. Zhan, and L.-T. Hsu. [**Degeneration of sliding-window factor graph optimization into iterated extended Kalman filtering**](https://doi.org/10.1038/s44459-026-00069-4). *npj Wireless Technology*, 2, 58, 2026.
+2. W. Wen, T. Pfeifer, X. Bai, and L.-T. Hsu. [**Factor graph optimization for GNSS/INS integration: A comparison with the extended Kalman filter**](https://doi.org/10.1002/navi.421). *NAVIGATION*, 68(2), 315–331, 2021.
+3. B. Song, R. Xu, and L.-T. Hsu. [**FGO MythBusters: Explaining how Kalman Filter variants achieve the same performance as FGO in navigation applications**](https://arxiv.org/html/2511.00306v1). arXiv:2511.00306v1, 2025, preprint.
 
-Both data sources are available inside every module. There is no separate real-data page or article-specific module. The Run button starts a background calculation. Stop ends after the current epoch and keeps the completed plots. The notebook stays responsive while the worker computes. Save outputs before the cloud session expires.
+Please cite the relevant papers and report the code commit and settings when publishing results. [Software citation](CITATION.cff).
 
-### Updating an already open Colab session
+## Start here
 
-After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.5 · Colab connected** before enabling Run.
+[Open Colab](https://colab.research.google.com/github/Baoshan-Song/KFV-FGO-Comparison/blob/main/KFV-FGO-Colab.ipynb) → run **Setup** → run one of the three comparison cells → click **Run comparison**. Simulation defaults are ready to use.
 
-If an old panel is frozen and even Stop does not respond, use **Runtime → Restart session**, then run Setup and the comparison cell. A page refresh alone does not reload the Python code. The new panel reports startup failures directly and acknowledges Stop immediately. Its connection reports an unresponsive runtime and retries transient polling failures automatically.
-
-### Open real-data results immediately
-
-The three bundled recordings include precomputed results for all three modules' default settings, the matched Cauchy/Tukey comparisons, and Huber SW-FGO with windows of 5 and 20 states. These are complete independent solver runs, with their settings and provenance in [the preset manifest](kfv_fgo/precomputed/manifest.json).
-
-With **Use saved results** enabled, an exact match opens directly without parsing RINEX, aligning IMU, or solving again. The timeline, position errors, residuals and iteration diagnostics remain available. The status explicitly says **Loaded saved results**. Timing values in those results describe the original solve, not the cache load or your current computer.
-
-Change a parameter and the panel computes a fresh result with live progress, then caches that completed run. Uncheck **Use saved results** to force a new calculation. Cache matching includes input-file contents, solver/evaluation source and the numerical configuration. It never substitutes a nearby setting or a different recording.
-
-Fresh real-data loading reports file reading, satellite-state computation, IMU alignment and initialization separately. Parsed observations are reused in the current session. IMU intervals use binary time indexing; this preserves the original interpolated values while avoiding repeated scans of the entire recording. The worker sends lightweight progress messages and the completed result through a queue. In Colab, short browser-to-kernel requests update widgets, so progress does not depend on a background asynchronous task continuing after a cell returns. Errors are displayed in the status rather than leaving a permanent loading message.
-
-To regenerate the bundled results locally, run `python scripts/precompute_colab.py --refresh`. The script uses the same public estimator paths as a fresh UI run.
-
-| Module | Comparisons |
+| Module | What you can investigate |
 |---|---|
-| KFV vs KFV | EKF, iEKF, rEKF and riEKF, independently configured |
-| KFV vs FGO | Any filter variant against Re-FGO or SW-FGO |
-| FGO vs FGO | Two independent SW-FGO configurations, initially 5 and 20 states |
+| [KFV vs KFV](#1-kfv-vs-kfv) | Iteration and robust kernels within filtering |
+| [KFV vs FGO](#2-kfv-vs-fgo) | Matched filter/graph equivalence or filtering versus smoothing |
+| [FGO vs FGO](#3-fgo-vs-fgo) | Sliding-window length and its interaction with robust kernels |
 
-Re-FGO is an independent graph solver with two QR marginalizations. It never substitutes a precomputed filter estimate as a factor. Setting an ordinary sliding window to one does not implement the same procedure.
+Every workspace has **A — Left method**, **B — Right method**, and **C — Shared data**. Both methods receive the same observations and initial conditions.
 
-## Method cards
+## 1. KFV vs KFV
 
-Each parameter has an icon, a short explanation and a selection or slider. Inapplicable controls are greyed out and show their effective values.
+![KFV vs KFV simulation workspace](docs/images/simulation-kfv-kfv.jpg)
 
-| Filter | Iterations | Kernel | Robust scale |
-|---|---|---|---|
-| EKF | Fixed at **1** | Fixed at **none** | Disabled |
-| iEKF | Adjustable | Fixed at **none** | Disabled |
-| rEKF | Fixed at **1** | Adjustable | Enabled for a robust kernel |
-| riEKF | Adjustable | Adjustable | Enabled for a robust kernel |
+| Estimator | Iterations | Robust kernel |
+|---|---|---|
+| **EKF** | Fixed at 1 | Fixed at none |
+| **iEKF** | Adjustable | Fixed at none |
+| **rEKF** | Fixed at 1 | Selectable |
+| **riEKF** | Adjustable | Selectable |
 
-- **Iterations** is the maximum nonlinear updates per epoch. Repetition does not add measurements.
-- **Kernel** selects none, Huber, Cauchy or Tukey and operates on whitened residuals.
-- **Robust scale** is dimensionless, not metres. Smaller values downweight more measurements.
-- **Window** sets the states retained after an SW-FGO solve. Re-FGO fixes it at one.
-- **Numerical Jacobian** is simulation-only. Off uses analytic derivatives; on uses central finite differences.
-- **Re-FGO automatically follows the left filter** in KFV vs FGO. Its prior, noise, iterations and robust loss use the effective KFV configuration. The linked settings are greyed out, and no matching switch is needed. Selecting SW-FGO opens independent graph controls. The bottom FGO vs FGO module contains only SW-FGO, for comparing windows and robust settings.
+Try EKF versus iEKF to isolate iteration, or iEKF versus riEKF to examine robustness. Unavailable controls are greyed out and show their effective values.
 
-For an equivalence check, choose Re-FGO in KFV vs FGO. To study iteration, compare EKF with iEKF in KFV vs KFV. To study retained history, compare different SW-FGO windows in FGO vs FGO while keeping noise and loss settings the same.
+## 2. KFV vs FGO
 
-## Shared data settings
+![Matched robust filter and Re-FGO simulation workspace](docs/images/simulation-kfv-fgo.jpg)
 
-The three outlined cards are **A: Left method**, **B: Right method**, and **C: Shared data**. The teal data card switches between Simulation and Real GNSS/INS. Primary parameters stay visible in compact number fields; only additional settings are collapsed. Both methods use the same observations and initial conditions.
-
-| Simulation panel | Controls |
+| Right-hand estimator | Configuration and purpose |
 |---|---|
-| Nonlinearity and nominal noise | Range-emitter radius (m), nominal range standard deviation (m) |
-| Non-Gaussian noise | Probability, bias/mean (m) and standard deviation (m) of the second Gaussian component |
-| Initial guess and repeatability (expandable) | Number of states including the prior, shared X/Y initial position offsets (m), random seed |
+| **Re-FGO** | Automatically matches the left filter. Linked controls are locked. Compare independently computed solutions under matched settings. |
+| **SW-FGO** | Configure iterations, kernel and window independently. Examine the effect of retaining past states for relinearization. |
 
-The emitter radius controls measurement geometry, not satellite altitude. With the 100 m path fixed, bringing the emitters closer increases local range curvature near the path. It is a geometry-based nonlinearity control, not a universal scalar measure of nonlinearity. The 105 m minimum avoids coincident emitters and trajectory points. The nominal range standard deviation is squared to obtain variance. Outlier probability zero generates nominal noise only. Keep data settings and seed unchanged for a controlled comparison.
+Re-FGO performs two QR marginalizations. Its result is computed by the graph solver. The screenshot shows riEKF matched with robust Re-FGO.
 
-For **Real GNSS/INS**, choose bundled UrbanNav **medium**, **deep** or **harsh**. The recording loads automatically.
+## 3. FGO vs FGO
 
-| Real-data panel | Controls |
+![Two sliding-window configurations with expanded simulation settings](docs/images/simulation-fgo-fgo.jpg)
+
+Both sides use **SW-FGO**, initially with windows of **5** and **20**. Keep the other settings equal to isolate window length, then change the kernel to study their interaction. A larger window does not guarantee lower error.
+
+## A / B — Method options
+
+| Option | What it controls |
 |---|---|
-| GNSS / receiver | Optional elevation cutoff (-90 degrees disables it), SNR cutoff (0 disables it), and receiver-clock process standard deviation (default 100 m) |
-| IMU / motion uncertainty | Position, velocity and accelerometer-bias process standard deviations per GNSS interval; defaults 0.30 m, 0.15 m/s and 0.01 m/s² |
-| Time and custom data (expandable) | Optional directory and GPS-UTC offset; bundled 2021 data uses 18 s |
+| **Estimator** | Filter variant, Re-FGO or SW-FGO, depending on the module |
+| **Iterations** | Maximum nonlinear updates per epoch; more iterations reuse the same measurements |
+| **Robust kernel** | `none`, `huber`, `cauchy` or `tukey`, applied to whitened measurement residuals |
+| **Robust scale** | Dimensionless kernel scale; smaller values downweight residuals more strongly |
+| **Gradual scale** | Cauchy/Tukey initialization with a broad scale that approaches the target across iterations; off uses a fixed scale |
+| **Window** | Number of states retained after an SW-FGO solve; larger windows retain more history and cost more computation |
+| **Numerical Jacobian** | Simulation graph option. Off uses analytic derivatives; on uses central finite differences |
 
-Process standard deviations are squared to form diagonal Q. They are discrete uncertainties, not continuous IMU noise densities. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` or the supplied lossless `xsens_imu.npz`. Optional `gt.txt` enables reference-error plots. For a Drive data directory, mount Drive separately before selecting its path.
+## C — Simulation settings
 
-The real model estimates ECEF position (3), ECEF velocity (3), body accelerometer bias (3) and receiver clock bias (1). It uses recorded AHRS attitude and first-valid-sample Euler propagation per GNSS interval. It is a pseudorange/IMU estimator comparison, not carrier-phase RTK or a complete strapdown INS. Observation variances depend on elevation and SNR, following the contributed model. The simulation noise controls do not affect real data.
+A **100 m circular trajectory** is observed by **six range emitters**. Measurement noise mixes a nominal zero-mean Gaussian with a second Gaussian controlled by the outlier settings.
 
-Truth is used only for evaluation, interpolated at overlapping UTC timestamps without extrapolation or fitted trajectory alignment. Plots use causal online states, including SW-FGO. Epoch zero is the initial prior and is excluded from accuracy statistics. Missing GNSS intervals break the plotted curves.
+| Option | Default | What it changes |
+|---|---:|---|
+| **Emitter radius (m)** | 200 | Range geometry; moving emitters closer to the path increases local curvature |
+| **Range noise std (m)** | 0.1 | Nominal measurement noise and its assumed standard deviation |
+| **Outlier probability** | 0.2 | Probability of sampling the second Gaussian; 0 gives nominal noise only |
+| **Outlier bias (m)** | 0 | Mean of the second Gaussian |
+| **Outlier std (m)** | 10 | Standard deviation of the second Gaussian |
+| **Epochs** | 100 | Number of states around the circle, including the initial state |
+| **Initial X / Y offset (m)** | 100 / −100 | Shared starting-position error |
+| **Random seed** | 7 | Repeatable observations; keep fixed when comparing configurations |
 
-## Live computation and time navigation
+The last three rows are under **Initial guess & repeatability**. Compare Gaussian noise, a zero-mean mixture and a biased mixture by changing only the outlier settings.
 
-Both simulation and real-data comparisons update while solving. The worker alternates the two methods at each epoch, and the display refreshes up to about three times per second rather than sending a whole figure for every observation. Data loading is reported before the first result appears.
+## Read the results
 
-- **Play / Pause** is available in the final paper-style viewer, together with the full curve, local enlargement and timeline. During computation a temporary progress bar and status text are shown; there is no temporary plot UI. Each new run stops and clears the old replay before replacing it with the new completed result. Scrubbing pauses playback, and Play at the end starts again.
-- **Follow latest** tracks the newest completed pair of updates.
-- Drag **Time** backwards or forwards to examine completed epochs. This turns automatic following off, so incoming results do not move your selection.
-- The time label gives elapsed seconds and the epoch index, including irregular real-data intervals. **Detail (s)** controls the local time span.
-- Live views show trajectory, position error and post-fit / innovation residual norms. Grey bands identify recorded GNSS gaps. Raw observation residuals are not positioning errors.
-- **Stop** is cooperative and takes effect between epoch updates. Completed curves stay available, but a stopped partial run is not labeled a complete experiment.
-- The finished viewer includes iteration diagnostics and exports directly. Real-data scene enlargements are optional and off by default, keeping the timeline visible.
+![Simulation trajectory viewer with matched filter and graph estimates](docs/images/simulation-results.jpg)
 
-The notebook and batch results use the same solver generators. Solver timings exclude the time spent yielding to the other method and status reporting. The total time you wait also includes visualization and data loading, so it should not be used as a controlled solver benchmark.
+**Blue** is the left method, **red** the right method, and **black** the reference. Filter crosses and graph circles overlap when their solutions agree.
 
-## Cauchy and Tukey initialization
-
-Their fixed-scale weights can nearly vanish when the initial state error is much larger than the measurement noise. Tukey has exactly zero weight outside its cutoff. This is a property of redescending losses, not a reason to replace their formulas with Huber or invent a nonzero weight floor.
-
-The UI remembers a separate target scale for each kernel. Its initial suggestions are 2.385 for Cauchy and 4.685 for Tukey, following the conventional tuning constants documented by [EViews](https://help.eviews.com/content/robustreg-Background.html) and [statsmodels](https://www.statsmodels.org/stable/generated/statsmodels.robust.norms.TukeyBiweight.html). Huber retains the previous UI default of 1. These are editable starting points, not calibrated sensor noise or universal optimal settings. Applying the same cutoff of 1 to all three losses does not give them comparable rejection strength.
-
-The method cards now expose **Gradual scale** for Cauchy and Tukey, enabled by default in the UI. The broad-to-target strategy follows the [Ceres loss-scale continuation guidance](https://ceres-solver.readthedocs.io/latest/nnls_modeling.html#lossfunctionwrapper). Our explicit starting-scale choices are twice the median absolute whitened residual for Cauchy and four times the maximum for Tukey. The latter keeps all first-step weights at least `(15/16)^2`. These choices are an initialization policy, not statistical detection thresholds.
-
-Within a multi-update epoch, scales decrease geometrically to the selected target on the last allowed update. A single-update rEKF uses the broad scale for that update and recomputes it at the next epoch. Nominal measurement covariance is never changed, and actual scales are saved in each iteration trace. The linked Re-FGO uses the same schedule and retains both QR marginalizations. SW-FGO derives its schedule from active measurement factors.
-
-Disable Gradual scale to reproduce the original fixed-scale estimator. It remains off by default in the core configuration and article scripts. Continuation changes the intermediate robust objective, and cannot guarantee the global optimum or that one kernel will win on every recording. A very narrow target cutoff or inadequate initialization can still reject useful observations.
-
-## Read and export results
-
-| View or control | Meaning |
+| View / control | What you can inspect |
 |---|---|
-| Trajectory | Full trajectory and an equal-scale local enlargement |
-| Position error | Full interval and selected detail; real data offers horizontal, signed Up and 3D error |
-| Residual norm | Current post-fit or pre-fit / innovation Euclidean norm (m), not the full graph objective |
-| Truth measurement error | Simulation-only option within the residual view |
-| Iteration path | Actual per-iteration states and residual or objective; simulation adds range contours |
-| Epoch / Detail / Play | Choose and replay the enlarged interval without recalculation |
-| Scene 1 / 2 enlargements | Optional medium street-region details, shared by both methods |
-| Save SVG | Export the displayed vector figure |
+| **Trajectory** | Complete path and a local enlargement |
+| **Position error** | Accuracy over time and within the selected detail |
+| **Residual norm / Range view** | Post-fit residual, innovation, or simulated truth measurement error; these are not positioning errors |
+| **Axis** | Linear or logarithmic residual display |
+| **Iteration path / Iteration view** | Updates within an epoch, with range residual norm or full objective |
+| **Play / timeline / Detail** | Replay or inspect completed results without rerunning |
+| **Save SVG** | Export the displayed vector figure |
 
-Blue and red identify the left and right methods. Black squares mark truth, crosses mark filters, and open circles mark graphs. Matched estimates intentionally overlap. A robust estimate may have a larger raw residual norm while its position error is smaller. Interpret residuals with position error and used-satellite count. Objectives from different windows or losses are not directly comparable.
+The status shows computation progress. **Stop** takes effect after the current operation. The interactive viewer appears when the pair finishes. Accuracy statistics exclude the initial prior and use each method's online estimates.
 
-Real runs save HTML, configuration/accuracy JSON, UTC-tagged state CSVs and NPZ files in separate timestamped folders under `artifacts/colab/`. Download these from Colab's Files panel. NPZ contains causal states, predictions, covariances and per-epoch timings. SW-FGO covariance extraction is not enabled; unavailable entries are NaN.
+## Code and credits
 
-## Article reproduction
+[Python / Colab](https://github.com/Baoshan-Song/KFV-FGO-Comparison/tree/main) · [Original MATLAB branch](https://github.com/Baoshan-Song/KFV-FGO-Comparison/tree/matlab) · [Theory and QR conventions](docs/paper_alignment.md)
 
-The six-method Inside GNSS figures remain article outputs, outside the three-module UI. `python scripts/insidegnss_article.py --scene medium` retains ordinary and Huber comparisons with SW-FGO-w20, and also accepts deep or harsh. Solvers and the vector renderer remain shared with the interactive comparisons. This UI revision does not alter the article's figures or measured results.
+Thanks to **ZzPolyU** for the GNSS/INS contribution in [PR #5](https://github.com/Baoshan-Song/KFV-FGO-Comparison/pull/5). [Third-party notices](kfv_fgo/THIRD_PARTY_NOTICES.md). GNU GPL v3.
 
-## Supporting papers and citation
+## Bonus — Real GNSS/INS
 
-The Re-FGO theory is developed in **B. Song, R. Xu, Z. Zhan, and L.-T. Hsu, “Degeneration of sliding-window factor graph optimization into iterated extended Kalman filtering,” npj Wireless Technology, vol. 2, article 58, 2026**, [doi:10.1038/s44459-026-00069-4](https://doi.org/10.1038/s44459-026-00069-4). The GNSS/INS application builds on **W. Wen, T. Pfeifer, X. Bai, and L.-T. Hsu, “Factor graph optimization for GNSS/INS integration: A comparison with the extended Kalman filter,” NAVIGATION, vol. 68, no. 2, pp. 315–331, 2021**, [doi:10.1002/navi.421](https://doi.org/10.1002/navi.421).
-
-Please cite the theoretical paper when using the Re-FGO comparison. If reporting results from this implementation, also identify the code version or commit and the settings used. GitHub's **Cite this repository** entry is configured through [`CITATION.cff`](CITATION.cff).
-
-```bibtex
-@article{song2026refgo,
-  author = {Song, Baoshan and Xu, Ruijie and Zhan, Zhi and Hsu, Li-Ta},
-  title = {Degeneration of sliding-window factor graph optimization
-           into iterated extended Kalman filtering},
-  journal = {npj Wireless Technology},
-  volume = {2},
-  number = {1},
-  year = {2026},
-  note = {Article 58},
-  doi = {10.1038/s44459-026-00069-4}
-}
-
-@misc{song2026kfvfgo,
-  author = {Song, Baoshan and {contributors}},
-  title = {{KFV-FGO Comparison}: Python/Colab toolbox},
-  year = {2026},
-  howpublished = {\url{https://github.com/Baoshan-Song/KFV-FGO-Comparison}},
-  note = {Version 0.4.0}
-}
-```
-
-## Code, checks and credits
-
-[`main`](https://github.com/Baoshan-Song/KFV-FGO-Comparison/tree/main) is the maintained Python/Colab branch. [`matlab`](https://github.com/Baoshan-Song/KFV-FGO-Comparison/tree/matlab) preserves the previous MATLAB main branch.
-
-- Paper: [published article](https://doi.org/10.1038/s44459-026-00069-4), [v1](https://arxiv.org/html/2511.00306v1), [v2](https://arxiv.org/html/2511.00306v2). See [paper alignment](docs/paper_alignment.md) for the fixed-prediction and QR conventions.
-- Thanks to **ZzPolyU** for [PR #5](https://github.com/Baoshan-Song/KFV-FGO-Comparison/pull/5), contributing GNSS/INS data readers, models, real data and saved MATLAB comparisons. Integration preserves the corrected independent graph solver. [Third-party notices](kfv_fgo/THIRD_PARTY_NOTICES.md) accompany the contribution.
-- Canonical solvers live in `core/`. Real observation and propagation models live in `kfv_fgo/model/`; data adapters in `kfv_fgo/data/`. `experiment_common.py`, `real_experiment.py` and `kfv_fgo/comparison.html` drive both the GUI and article outputs.
-- The [real-data verification](docs/real_validation.json) checks full-sequence state/covariance agreement for all four matched KFV/Re-FGO variants. Tests also check graph independence, affine QR priors, causal residuals, data timestamps and the contributed model probes. Historical MATLAB results remain fixtures, not substitutes for current Python outputs.
+Choose **Real GNSS/INS** in card C of any module. The method controls and result viewer work as above. Only the data-specific settings change.
 
 <details>
-<summary>Optional local development (not required to use Colab)</summary>
+<summary>Show real-data settings and explanation</summary>
 
-Use Python 3.10 or later. In a virtual environment:
+<img src="docs/images/real-data-settings.jpg" alt="Real GNSS/INS shared-data settings" width="400">
 
-```bash
-python -m pip install -e '.[real,colab,plots]' pytest
-python -m unittest discover -s tests -v
-python -m pytest kfv_fgo/tests -q
-python scripts/check_notebook.py
-python scripts/validate_paper.py --output artifacts/validation.json
-python scripts/insidegnss_real.py
-```
+| Option | Meaning |
+|---|---|
+| **Recording** | Bundled UrbanNav `medium`, `deep` or `harsh`; loads automatically |
+| **Min. elevation (deg)** | Elevation cutoff; −90 disables it |
+| **Min. SNR (dB-Hz)** | Signal-strength cutoff; 0 disables it |
+| **Clock std (m)** | Receiver-clock process uncertainty; default 100 |
+| **Position std (m)** | Position process uncertainty; default 0.30 |
+| **Velocity std (m/s)** | Velocity process uncertainty; default 0.15 |
+| **Accel. bias std (m/s²)** | Accelerometer-bias process uncertainty; default 0.01 |
+| **GPS − UTC (s)** | Time-system offset; 18 for the bundled recordings |
+| **Custom data directory** | Leave blank for bundled data, or supply a directory accessible to Colab |
+| **Use saved results** | Loads an exact matching completed run; uncheck to calculate again |
 
-The optional Schur/window benchmark remains separate and disabled by default. It uses its legacy final-history metric rather than the GUI's online metric.
+The process standard deviations apply **per GNSS interval**, rather than being continuous IMU noise densities. The model combines pseudorange and IMU measurements using recorded AHRS attitude. Reference positions are used only for evaluation.
+
+Custom data needs `f9p_navi.obs`, `brdm.rnx`, and `xsens_imu.csv` or `xsens_imu.npz`. Optional `gt.txt` enables error plots. The **Error** selector adds horizontal, signed Up and 3D views. **Scene 1 / 2 enlargements** adds medium-recording details. Completed real runs save data under `artifacts/colab/`; download it from Colab's Files panel before the session expires.
 
 </details>
-
-GNU General Public License v3, as specified by the original project.
