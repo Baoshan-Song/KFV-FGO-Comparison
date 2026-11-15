@@ -52,24 +52,26 @@ class ColabRequestTests(unittest.TestCase):
 
     def test_colab_runs_and_restarts_without_notebook_asyncio(self):
         ui,panel=self.panel()
-        for _ in range(2):
+        revisions=[]
+        for seed in (7,8,9):
+            ui.sim['seed'].value=seed
             with patch('colab_ui.asyncio.get_running_loop',side_effect=AssertionError('Colab must not use asyncio')):
                 ui.run.click()
+            self.assertEqual(ui.progress.layout.display,'')
             self.finish(ui,panel)
+            self.assertEqual(ui.progress.layout.display,'none')
             self.assertIn('Complete',ui.status.value)
             self.assertFalse(ui.details.disabled)
             self.assertFalse(hasattr(ui,'ui_task'))
+            self.assertFalse(hasattr(ui,'_live'))
+            self.assertFalse(hasattr(ui,'live_container'))
             state=panel.poll()
             self.assertIsNotNone(state['viewer']['packet'])
-            self.assertEqual(ui.live_container.layout.display,'')
-            revision=state['viewer']['revision']
-            # Receipt/transfer is not a render acknowledgement.
+            revision=state['viewer']['revision'];revisions.append(revision)
             self.assertNotIn('viewer',panel.poll(viewer_revision=revision))
-            self.assertEqual(ui.live_container.layout.display,'')
-            panel.poll(viewer_revision=revision,rendered_revision=revision-1)
-            self.assertEqual(ui.live_container.layout.display,'')
             panel.poll(viewer_revision=revision,rendered_revision=revision)
-            self.assertEqual(ui.live_container.layout.display,'none')
+            self.assertEqual(ui._rendered_revision,revision)
+        self.assertEqual(revisions,sorted(set(revisions)))
 
     def test_stop_is_acknowledged_then_can_run_again(self):
         ui,panel=self.panel()
@@ -92,13 +94,12 @@ class ColabRequestTests(unittest.TestCase):
             ui.run.click();self.finish(ui,panel)
         self.assertIn('Loaded saved results',ui.status.value)
         self.assertTrue(all(call.kwargs.get('load_observations') is False for call in prepare.call_args_list))
-        self.assertEqual(ui._live.timeline.max,656)
         packet=ui._viewer_packet
         payload=(packet['data'] if packet['encoding']=='json' else
                  json.loads(gzip.decompress(base64.b64decode(packet['data']))))
         self.assertTrue(payload['compact'])
         self.assertEqual(payload['frames'],657)
-        self.assertEqual(ui.live_container.layout.display,'')
+        self.assertFalse(hasattr(ui,'live_container'))
 
     def test_both_sliding_window_defaults_have_saved_results(self):
         ui,panel=self.panel('FGO vs FGO')
@@ -125,6 +126,8 @@ class ColabRequestTests(unittest.TestCase):
         self.assertIn('comparison-ready',html)
         self.assertNotIn('<iframe',html)
         self.assertNotIn('srcdoc',html)
+        self.assertIn('Reconnecting to Colab',html)
+        self.assertNotIn('existing preview',html)
 
     def test_worker_failure_visible(self):
         ui,panel=self.panel()
@@ -148,17 +151,15 @@ class NotebookJobTests(unittest.IsolatedAsyncioTestCase):
     async def test_loading_remains_responsive_and_widgets_stay_on_main_thread(self):
         ui=ComparisonUI('KFV vs FGO');ui.sim['num_steps'].value=30
         main=get_ident();threads=[];ticks=[]
-        class TrackedView(LiveComparison):
-            def __init__(self,*args):
-                threads.append(get_ident());super().__init__(*args)
-            def receive(self,*args):
-                threads.append(get_ident());super().receive(*args)
+        from colab_ui import encode_viewer
+        def encode(payload):
+            threads.append(get_ident());return encode_viewer(payload)
         def delayed(*args,**kwargs):
             self.assertNotEqual(get_ident(),main)
             kwargs['progress']('Reading test observations')
             sleep(.15)
             return prepare_comparison(*args,**kwargs)
-        with patch('colab_ui.prepare_comparison',side_effect=delayed),patch('colab_ui.LiveComparison',TrackedView):
+        with patch('colab_ui.prepare_comparison',side_effect=delayed),patch('colab_ui.encode_viewer',side_effect=encode):
             ui._run(None)
             while not ui.ui_task.done():
                 ticks.append(ui.status.value);await asyncio.sleep(.02)

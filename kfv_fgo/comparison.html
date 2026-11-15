@@ -23,6 +23,7 @@ const markup=root.innerHTML.split('<script>')[0];
 let dispose=()=>{};
 function mount(fullData){
  dispose();
+ dispose=()=>{};
  root.innerHTML=markup;
  if(!fullData){root.hidden=true;return;}
  root.hidden=false;

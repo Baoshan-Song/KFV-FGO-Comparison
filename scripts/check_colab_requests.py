@@ -58,10 +58,10 @@ display(panel)
 panel.poll()
 JSON(dict(run=ui.run.model_id,stop=ui.stop.model_id))''')
             click(ids['run']);poll_until_done()
-            state=execute("JSON(dict(status=ui.status.value,enabled=not ui.run.disabled,async_task=hasattr(ui,'ui_task'),timeline=ui._live.timeline.max))")
+            state=execute("JSON(dict(status=ui.status.value,enabled=not ui.run.disabled,async_task=hasattr(ui,'ui_task'),has_viewer=ui._viewer_packet is not None))")
             assert state['enabled'] and not state['async_task'],state
             assert ('Loaded saved results' if source!='Simulation' and reuse else 'Complete') in state['status'],state
-            assert state['timeline']==(299 if source=='Simulation' else 656),state
+            assert state['has_viewer'],state
             print('PASS',source,'cache' if reuse else 'fresh',state,flush=True)
 
         ids=execute('''import time

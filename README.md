@@ -15,9 +15,9 @@ Both data sources are available inside every module. There is no separate real-d
 
 ### Updating an already open Colab session
 
-After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.4 · Colab connected** before enabling Run.
+After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.5 · Colab connected** before enabling Run.
 
-If an old panel is frozen and even Stop does not respond, use **Runtime → Restart session**, then run Setup and the comparison cell. A page refresh alone does not reload the Python code. The new panel reports startup failures directly and acknowledges Stop immediately. Its live connection also reports a disconnected or unresponsive runtime instead of silently waiting.
+If an old panel is frozen and even Stop does not respond, use **Runtime → Restart session**, then run Setup and the comparison cell. A page refresh alone does not reload the Python code. The new panel reports startup failures directly and acknowledges Stop immediately. Its connection reports an unresponsive runtime and retries transient polling failures automatically.
 
 ### Open real-data results immediately
 
@@ -27,7 +27,7 @@ With **Use saved results** enabled, an exact match opens directly without parsin
 
 Change a parameter and the panel computes a fresh result with live progress, then caches that completed run. Uncheck **Use saved results** to force a new calculation. Cache matching includes input-file contents, solver/evaluation source and the numerical configuration. It never substitutes a nearby setting or a different recording.
 
-Fresh real-data loading reports file reading, satellite-state computation, IMU alignment and initialization separately. Parsed observations are reused in the current session. IMU intervals use binary time indexing; this preserves the original interpolated values while avoiding repeated scans of the entire recording. The worker sends numerical results through a queue. In Colab, short browser-to-kernel requests update widgets, so progress does not depend on a background asynchronous task continuing after a cell returns. Errors are displayed in the status rather than leaving a permanent loading message.
+Fresh real-data loading reports file reading, satellite-state computation, IMU alignment and initialization separately. Parsed observations are reused in the current session. IMU intervals use binary time indexing; this preserves the original interpolated values while avoiding repeated scans of the entire recording. The worker sends lightweight progress messages and the completed result through a queue. In Colab, short browser-to-kernel requests update widgets, so progress does not depend on a background asynchronous task continuing after a cell returns. Errors are displayed in the status rather than leaving a permanent loading message.
 
 To regenerate the bundled results locally, run `python scripts/precompute_colab.py --refresh`. The script uses the same public estimator paths as a fresh UI run.
 
@@ -89,7 +89,7 @@ Truth is used only for evaluation, interpolated at overlapping UTC timestamps wi
 
 Both simulation and real-data comparisons update while solving. The worker alternates the two methods at each epoch, and the display refreshes up to about three times per second rather than sending a whole figure for every observation. Data loading is reported before the first result appears.
 
-- **Play / Pause** is available in the live preview. On completion, or when loading saved results, the original paper-style viewer opens automatically with the full curve and local enlargement. Its replay and slider run in the browser without a Python request for each frame. Scrubbing pauses playback, and Play at the end starts again. The original viewer is displayed directly in the Colab output, with a shorter toolbar and captions. It stays visible after completion; the live preview is hidden only after the browser confirms that the replacement figure has rendered.
+- **Play / Pause** is available in the final paper-style viewer, together with the full curve, local enlargement and timeline. During computation a temporary progress bar and status text are shown; there is no temporary plot UI. Each new run stops and clears the old replay before replacing it with the new completed result. Scrubbing pauses playback, and Play at the end starts again.
 - **Follow latest** tracks the newest completed pair of updates.
 - Drag **Time** backwards or forwards to examine completed epochs. This turns automatic following off, so incoming results do not move your selection.
 - The time label gives elapsed seconds and the epoch index, including irregular real-data intervals. **Detail (s)** controls the local time span.
@@ -97,7 +97,7 @@ Both simulation and real-data comparisons update while solving. The worker alter
 - **Stop** is cooperative and takes effect between epoch updates. Completed curves stay available, but a stopped partial run is not labeled a complete experiment.
 - The finished viewer includes iteration diagnostics and exports directly. Real-data scene enlargements are optional and off by default, keeping the timeline visible.
 
-Live curves and batch results use the same solver generators. Solver timings exclude the time spent yielding to the other method and the live viewer. The total time you wait also includes visualization and data loading, so it should not be used as a controlled solver benchmark.
+The notebook and batch results use the same solver generators. Solver timings exclude the time spent yielding to the other method and status reporting. The total time you wait also includes visualization and data loading, so it should not be used as a controlled solver benchmark.
 
 ## Cauchy and Tukey initialization
 

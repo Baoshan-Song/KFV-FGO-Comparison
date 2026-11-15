@@ -2,7 +2,7 @@
 import ipywidgets as W
 
 from colab_comparison import MODULES, FILTERS, GRAPHS, prepare_comparison
-from live_comparison import LiveComparison, run_interleaved
+from live_comparison import run_interleaved
 from threading import Thread, Event
 from queue import SimpleQueue, Empty
 import asyncio
@@ -46,6 +46,31 @@ def _row(icon, label, help_text, control):
 
 def _card(children, width='100%'):
     return W.VBox(children, layout=W.Layout(width=width, min_width='300px')).add_class('kfv-card')
+
+
+def _sections(children, titles, selected_index=None):
+    """Expandable settings using basic widgets supported by Colab's manager.
+
+    Colab can fail to construct AccordionView even when the method-card widgets
+    render. Keep the original controls and callbacks, changing only grouping.
+    """
+    groups = []
+    for index, (content, title) in enumerate(zip(children, titles)):
+        opened = index == selected_index
+        content.layout.display = '' if opened else 'none'
+        toggle = W.Button(description=('▾ ' if opened else '▸ ') + title,
+                          layout=W.Layout(width='100%', height='38px'),
+                          tooltip='Show or hide these settings')
+        toggle.add_class('kfv-section-toggle')
+
+        def switch(_, panel=content, button=toggle, label=title):
+            show = panel.layout.display == 'none'
+            panel.layout.display = '' if show else 'none'
+            button.description = ('▾ ' if show else '▸ ') + label
+
+        toggle.on_click(switch)
+        groups.append(W.VBox([toggle, content], layout=W.Layout(width='100%')))
+    return W.VBox(groups, layout=W.Layout(width='100%'))
 
 
 def _slider(value, low, high, step=1, integer=False):
@@ -181,7 +206,7 @@ class ComparisonUI:
             _row('X','Initial X offset (m)','Shared by both methods',self.sim['initial_error_x']),
             _row('Y','Initial Y offset (m)','Shared by both methods',self.sim['initial_error_y']),
             _row('#','Random seed','Keep unchanged for a controlled comparison',self.sim['seed'])])
-        self.sim_panel=W.Accordion(children=[self.sim_data,self.sim_faults,self.sim_initial],selected_index=None,
+        self.sim_panel=_sections(children=[self.sim_data,self.sim_faults,self.sim_initial],selected_index=None,
                                      titles=['◉ Geometry and nominal noise','⚑ Outlier simulation','↗ Initialization and repeatability'])
         self.real_noise=_card([
             _row('p','Position (m)','Process standard deviation per GNSS interval',self.real['position_process_std_m']),
@@ -194,13 +219,14 @@ class ComparisonUI:
         self.real_files=_card([
             _row('▣','Custom data directory','RINEX observations/navigation and Xsens data. Optional truth file.',self.real['data_directory']),
             _row('◷','GPS − UTC (s)','Historical offset for the recording',self.real['gps_minus_utc_s'])])
-        self.real_panel=W.Accordion(children=[self.real_noise,self.real_quality,self.real_files],selected_index=None,
+        self.real_panel=_sections(children=[self.real_noise,self.real_quality,self.real_files],selected_index=None,
                                     titles=['σ Process uncertainty','◉ GNSS quality gates','▣ Custom data and time'])
         self.data_note=W.HTML()
         self.run=W.Button(description='Run comparison',icon='play',button_style='primary',layout=W.Layout(width='180px'))
-        self.status=W.HTML('<span class="kfv-note">Ready. Plots update as each method computes.</span>')
+        self.status=W.HTML('<span class="kfv-note">Ready. Run a comparison to show the results.</span>')
+        self.progress=W.IntProgress(value=0,min=0,max=100,description='Progress',bar_style='info',
+                                    layout=W.Layout(width='100%',display='none'))
         self.output=W.Output(layout=W.Layout(width='100%'))
-        self.live_container=W.VBox()
         self.details=W.Button(description='Open full diagnostics',icon='line-chart',disabled=True,layout=W.Layout(width='210px'))
         self.details.layout.display='none'
         self.details.on_click(self._show_details)
@@ -215,9 +241,9 @@ class ComparisonUI:
             _heading('⚙','Shared data settings','Optional. Defaults are ready to run.'),
             self.sim_panel,self.real_panel,
             W.HBox([self.run,self.stop,self.use_cache],layout=W.Layout(align_items='center',margin='14px 0 4px')),
-            self.connection,self.status,
-            W.HTML('<div class="kfv-note">Stop ends after the current epoch. Drag the live time slider to inspect completed results.</div>'),
-            self.live_container,self.details,self.output],layout=W.Layout(width='100%')).add_class('kfv-workspace')
+            self.connection,self.status,self.progress,
+            W.HTML('<div class="kfv-note">Stop ends after the current operation. Results appear when both methods finish.</div>'),
+            self.details,self.output],layout=W.Layout(width='100%')).add_class('kfv-workspace')
         self._syncing=False
         self.source.observe(self._sync,names='value')
         for card in (self.left,self.right):
@@ -260,16 +286,13 @@ class ComparisonUI:
         payload=dict(payload,compact=True)
         self._viewer_packet=encode_viewer(payload)
         self._viewer_revision+=1
-        if self._live is not None:self._live.play.playing=False
-        # Keep the existing result visible until the browser confirms the old
-        # renderer has actually produced an SVG. Sending data is not rendering.
         self.output.outputs=()
         if self._colab_bridge is None:
             self.output.append_display_data(animate_payload(payload,interval=80))
 
     def _viewer_ready(self, revision):
-        if revision==self._viewer_revision and self._viewer_packet is not None:
-            self.live_container.layout.display='none'
+        if revision==self._viewer_revision:
+            self._rendered_revision=revision
 
     def _stop(self, _=None):
         if not self._busy:return
@@ -285,21 +308,19 @@ class ComparisonUI:
             loop=None if self._colab_bridge else asyncio.get_running_loop()
             self._busy=True
             self._finished=False
-            if getattr(self,'_live',None) is not None:self._live.play.playing=False
-            self._live=None
             self._started=monotonic()
             self._stage='Starting worker…'
             self._events=SimpleQueue()
             self.run.disabled=True;self.stop.disabled=False;self.details.disabled=True
             self.stop_event.clear()
             self.status.value=f'<b>{self._stage}</b>'
+            self.progress.value=0;self.progress.max=100
+            self.progress.layout.display=''
             # Direct state updates avoid output capture / clear_output messages
             # tied to a completed cell or widget callback.
             self.output.outputs=()
             self._viewer_packet=None
             self._viewer_revision+=1
-            self.live_container.children=[]
-            self.live_container.layout.display=''
             for field in ('experiment','cached_payload'):
                 if hasattr(self,field):delattr(self,field)
             args=(self.module,self.source.value,self.left.values(),self.right.values())
@@ -337,10 +358,20 @@ class ComparisonUI:
                 data,left,right=prepare_comparison(*args,**options,progress=report,stop=self.stop_event)
                 if self.stop_event.is_set():
                     raise InterruptedError('Stopped during loading')
-                self._events.put(('ready',(data,[left,right])))
-                experiment=run_interleaved(data,[left,right],lambda i,e:self._events.put(('epoch',(i,e))),self.stop_event)
+                total=int(data['num_steps'] if isinstance(data,dict) else data.num_steps)-1
+                ready=[0,0];last_report=0.
+                def progress(index,event):
+                    nonlocal last_report
+                    ready[index]=event['epoch']
+                    now=monotonic()
+                    if now-last_report>=.2:
+                        self._events.put(('progress',(sum(ready),2*total)))
+                        report(f'Computing both methods · {min(ready)} / {total} updates')
+                        last_report=now
+                report(f'Computing both methods · 0 / {total} updates')
+                experiment=run_interleaved(data,[left,right],progress,self.stop_event)
                 if experiment is None:
-                    raise InterruptedError('Stopped. Completed epochs remain available.')
+                    raise InterruptedError('Stopped. Run again to compute a complete comparison.')
                 report('Saving completed results')
                 if args[1]=='Real GNSS/INS':
                     from real_experiment import save_real_experiment
@@ -365,29 +396,23 @@ class ComparisonUI:
             while not self._finished and monotonic()<deadline:
                 try:kind,value=self._events.get_nowait()
                 except Empty:break
-                if kind=='status':
+                if kind=='progress':
+                    self.progress.max=max(1,value[1]);self.progress.value=value[0]
+                elif kind=='status':
                     if not self.stop_event.is_set():self._stage=value
-                elif kind=='ready':
-                    self._live=LiveComparison(*value)
-                    self.live_container.children=[self._live.widget]
-                    if not self.stop_event.is_set():self._stage='Computing both methods'
-                elif kind=='epoch':self._live.receive(*value)
                 elif kind=='cached':
                     if self.stop_event.is_set():
                         self._stage='Stopped'
                         continue
                     self.cached_payload=value
-                    self._live=LiveComparison.from_payload(value)
-                    self.live_container.children=[self._live.widget]
                     self.details.disabled=False
                     self._show_details(None)
                     self._stage=f'Loaded saved results · {value["frames"]-1} updates · stored solver timings'
                 elif kind=='complete':
-                    self.experiment=value;self._live.finish();self.details.disabled=False
+                    self.experiment=value;self.details.disabled=False
                     self._show_details(None)
                     self._stage='Complete. Play or scrub the timeline below'
                 elif kind in ('stopped','error'):
-                    if self._live is not None:self._live.finish(stopped=True)
                     self._stage=value
                     if kind=='error':self.output.append_stdout(value+'\n')
                 elif kind=='done':self._finished=True
@@ -403,6 +428,7 @@ class ComparisonUI:
         for control,disabled in self._previous.values():control.disabled=disabled
         self._previous={}
         self._busy=False
+        self.progress.layout.display='none'
         self.run.disabled=False;self.stop.disabled=True;self._sync()
 
     async def _pump(self):

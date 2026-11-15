@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from IPython.display import HTML, JSON, display
 
-UI_REVISION = '2026-11-15.4'
+UI_REVISION = '2026-11-15.5'
 _PANELS = {}
 
 
@@ -100,18 +100,17 @@ class ColabPanel:
   const note=document.getElementById('__ID__');
   const plot=document.getElementById('__ID___plot');
   const name=__NAME__;
-  let closed=false, viewerRevision=-1, renderedRevision=-1, plotError='';
+  let closed=false, viewerRevision=-1, renderedRevision=-1, plotError='', failures=0;
   plot.addEventListener('comparison-ready',event=>{
     renderedRevision=event.detail.revision;
     plotError='';
-    google.colab.output?.setIframeHeight?.(-1,true,{interactive:true,maxHeight:99999});
+    try { google.colab.output?.setIframeHeight?.(-1,true,{interactive:true,maxHeight:99999}); } catch (_) {}
   });
   plot.addEventListener('comparison-error',event=>{
-    plotError='Cannot display the full plot: '+event.detail.message+'. The existing preview is kept.';
+    plotError='Cannot display the full plot: '+event.detail.message+'. Try Run comparison again.';
     note.textContent=plotError;
   });
   async function showViewer(viewer) {
-    viewerRevision=viewer.revision;
     let data=null;
     try {
       if(viewer.packet?.encoding==='json')data=viewer.packet.data;
@@ -120,11 +119,12 @@ class ColabPanel:
         data=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
       }else if(viewer.packet)throw new Error('Unknown plot data format');
       plot.dispatchEvent(new CustomEvent('comparison-data',{detail:{revision:viewer.revision,data}}));
-      if(renderedRevision!==viewer.revision && !plotError)throw new Error('The renderer did not confirm a visible plot');
-    }catch(error){plotError='Cannot load the full plot: '+String(error)+'. The existing preview is kept.';}
+      if(renderedRevision!==viewer.revision)throw new Error('The renderer did not confirm the result');
+      viewerRevision=viewer.revision;
+    }catch(error){plotError='Cannot load the full plot: '+String(error)+'. Try Run comparison again.';}
   }
   async function poll() {
-    if (closed) return;
+    if (closed || !note.isConnected) return;
     const warning=setTimeout(() => {
       note.textContent='Colab is not responding. Check the runtime connection.';
     }, 10000);
@@ -134,14 +134,16 @@ class ColabPanel:
       const state=response.data['application/json'];
       clearTimeout(warning);
       if (!state || typeof state.active !== 'boolean') throw new Error('Invalid progress response');
+      failures=0;
       closed=state.closed;
       if(state.viewer)await showViewer(state.viewer);
       note.textContent=plotError;
       if (!closed) setTimeout(poll, state.active ? 200 : 1000);
     } catch (error) {
       clearTimeout(warning);
-      closed=true;
-      note.textContent='Live connection interrupted. Run this comparison cell again. '+String(error);
+      failures+=1;
+      note.textContent='Reconnecting to Colab… If this continues, check the runtime connection.';
+      if(!closed && note.isConnected)setTimeout(poll,Math.min(5000,500*failures));
     }
   }
   poll();
