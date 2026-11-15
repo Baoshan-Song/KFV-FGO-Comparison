@@ -44,7 +44,7 @@ class ResidualTests(unittest.TestCase):
         for cell in notebook['cells']:
             if cell['cell_type']=='code':
                 compile(''.join(cell['source']), '<colab>', 'exec')
-        setup=''.join(notebook['cells'][0]['source'])
+        setup=''.join(next(cell for cell in notebook['cells'] if cell['cell_type']=='code')['source'])
         self.assertNotIn('rmtree',setup)
         self.assertIn('BRANCH = "main"',setup)
 

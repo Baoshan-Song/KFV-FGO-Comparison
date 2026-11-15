@@ -16,9 +16,10 @@ parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--full-real',action='store_true',help='Use the full medium recording instead of 20 epochs')
 args=parser.parse_args()
 nb=nbformat.read('KFV-FGO-Colab.ipynb',as_version=4);nbformat.validate(nb)
-assert len(nb.cells)==4
+code_cells=[cell for cell in nb.cells if cell.cell_type=='code']
+assert len(code_cells)==4
 ns={}
-for i,cell in enumerate(nb.cells[1:],1):
+for i,cell in enumerate(code_cells[1:],1):
     with patch('IPython.display.display'):
         exec(compile(cell.source,f'colab_cell_{i}','exec'),ns)
     print('PASS widget module',i)
