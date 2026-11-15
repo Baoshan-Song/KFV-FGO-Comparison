@@ -1,4 +1,7 @@
 import asyncio
+import base64
+import gzip
+import json
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -57,10 +60,16 @@ class ColabRequestTests(unittest.TestCase):
             self.assertFalse(ui.details.disabled)
             self.assertFalse(hasattr(ui,'ui_task'))
             state=panel.poll()
-            self.assertIn('class="play"',state['viewer']['html'])
-            self.assertIn('requestAnimationFrame',state['viewer']['html'])
+            self.assertIsNotNone(state['viewer']['packet'])
+            self.assertEqual(ui.live_container.layout.display,'')
+            revision=state['viewer']['revision']
+            # Receipt/transfer is not a render acknowledgement.
+            self.assertNotIn('viewer',panel.poll(viewer_revision=revision))
+            self.assertEqual(ui.live_container.layout.display,'')
+            panel.poll(viewer_revision=revision,rendered_revision=revision-1)
+            self.assertEqual(ui.live_container.layout.display,'')
+            panel.poll(viewer_revision=revision,rendered_revision=revision)
             self.assertEqual(ui.live_container.layout.display,'none')
-            self.assertNotIn('viewer',panel.poll(viewer_revision=state['viewer']['revision']))
 
     def test_stop_is_acknowledged_then_can_run_again(self):
         ui,panel=self.panel()
@@ -84,7 +93,12 @@ class ColabRequestTests(unittest.TestCase):
         self.assertIn('Loaded saved results',ui.status.value)
         self.assertTrue(all(call.kwargs.get('load_observations') is False for call in prepare.call_args_list))
         self.assertEqual(ui._live.timeline.max,656)
-        self.assertIn('class="play"',ui._viewer_html)
+        packet=ui._viewer_packet
+        payload=(packet['data'] if packet['encoding']=='json' else
+                 json.loads(gzip.decompress(base64.b64decode(packet['data']))))
+        self.assertTrue(payload['compact'])
+        self.assertEqual(payload['frames'],657)
+        self.assertEqual(ui.live_container.layout.display,'')
 
     def test_both_sliding_window_defaults_have_saved_results(self):
         ui,panel=self.panel('FGO vs FGO')
@@ -102,6 +116,15 @@ class ColabRequestTests(unittest.TestCase):
         self.assertFalse(ui._busy)
         ui.run.click();self.finish(ui,panel)
         self.assertIn('Complete',ui.status.value)
+
+    def test_original_renderer_is_mounted_directly_without_nested_iframe(self):
+        _,panel=self.panel()
+        html=panel._script()
+        self.assertIn('class="paper-comparison"',html)
+        self.assertIn('comparison-data',html)
+        self.assertIn('comparison-ready',html)
+        self.assertNotIn('<iframe',html)
+        self.assertNotIn('srcdoc',html)
 
     def test_worker_failure_visible(self):
         ui,panel=self.panel()

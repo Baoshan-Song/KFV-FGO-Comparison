@@ -10,7 +10,7 @@
 <div class="tabs"><button data-view="trajectory" class="active">Trajectory</button><button data-view="error">Position error</button><button data-view="residual">Residual norm</button><button data-view="iterations">Iteration path</button><button data-view="difference" class="real-only">Solver difference</button><button data-view="satellites" class="real-only">Used satellites</button><button data-view="runtime" class="article-only">Runtime boxplot</button><button class="download">Save data</button><button class="export">Save SVG</button></div>
 <div class="controls group-controls" style="display:none"><label>Comparison <select class="group" aria-label="Comparison group"></select></label></div>
 <div class="controls scene-controls" style="display:none"><label><input type="checkbox" class="scene-zooms"> Scene 1 / 2 enlargements</label></div>
-<div class="controls epoch-controls"><button class="play" aria-label="Play comparison">▶ Play</button><label>Speed <select class="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><span class="play-time" aria-live="off"></span><label>Epoch <input class="epoch" type="number" min="1" value="15" style="width:65px"></label><input class="frame" aria-label="Epoch slider" type="range" min="1" value="15" style="flex:1;min-width:180px"><label class="detail-label">Detail <input class="span" aria-label="Detail epochs" type="number" min="2" value="8" style="width:58px"> epochs</label></div>
+<div class="controls epoch-controls"><button class="play" aria-label="Play comparison">▶ Play</button><label class="speed-label">Speed <select class="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><span class="play-time" aria-live="off"></span><label class="epoch-label">Epoch <input class="epoch" type="number" min="1" value="15" style="width:65px"></label><input class="frame" aria-label="Epoch slider" type="range" min="1" value="15" style="flex:1;min-width:180px"><label class="detail-label">Detail <input class="span" aria-label="Detail epochs" type="number" min="2" value="8" style="width:58px"> epochs</label></div>
 <div class="controls error-controls" style="display:none"><label>Error <select class="error-component"><option value="horizontal">Horizontal</option><option value="up">Up (signed)</option><option value="3d">3D</option></select></label></div>
 <div class="controls residual-controls" style="display:none"><label>Range view <select class="residual"><option value="postfit">Post-fit norm [m]</option><option value="prefit">Innovation norm [m]</option><option value="truth">Truth measurement-error norm [m]</option></select></label><label class="residual-scale-label">Axis <select class="residual-scale"><option value="linear">Linear</option><option value="log">Logarithmic</option></select></label></div>
 <div class="controls iteration-controls" style="display:none"><label>Iteration view <select class="objective"><option value="measurement_residual_norm_m">Range residual norm [m]</option><option value="objective">Full objective</option></select></label><span>The contour uses the unweighted range residual norm (m).</span></div>
@@ -18,11 +18,26 @@
 <details><summary>Definitions and numerical checks</summary><p>Trajectories and epoch-wise residuals use online states before later measurements can revise them. Epoch 0 is an initial prior and is not a measurement update. Range norms are unweighted Euclidean norms. The full objective includes prior, motion and the selected robust measurement loss. Its values cannot be compared across different windows or losses. The contour contains only current range measurements, not the full posterior objective. Iteration records use the same stored states as the solver.</p></details>
 <script>
 (async()=>{
-const root=document.getElementById('__ID__'), fullData=__PAYLOAD__, ns='http://www.w3.org/2000/svg';
+const root=document.getElementById('__ID__');
+const markup=root.innerHTML.split('<script>')[0];
+let dispose=()=>{};
+function mount(fullData){
+ dispose();
+ root.innerHTML=markup;
+ if(!fullData){root.hidden=true;return;}
+ root.hidden=false;
+ const ns='http://www.w3.org/2000/svg';
+
 const $=s=>root.querySelector(s), epoch=$('.epoch'), slider=$('.frame'), span=$('.span');
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const finite=v=>typeof v==='number'&&Number.isFinite(v), fmt=v=>Math.abs(v)>=1e4|| (Math.abs(v)>0&&Math.abs(v)<1e-3)?v.toExponential(1):String(Number(v.toFixed(Math.abs(v)>=10?1:2)));
 let data=fullData,styles;
+if(fullData.compact){
+ for(const selector of ['[data-view=difference]','[data-view=satellites]','[data-view=runtime]',
+                         '.download','.speed-label','.epoch-label','details']){
+  const item=root.querySelector(selector);if(item)item.style.display='none';
+ }
+}
 const colors=['#1857d3','#e3272b','#16834b'];
 const makeStyles=()=>data.names.map((n,i)=>({color:colors[i%3],marker:i===2?'t':data.kinds[i]==='fgo'?'o':'x',dash:i===1?'7 5':i===2?'3 2':'none'}));
 const time=data.time||Array.from({length:data.frames},(_,k)=>k*data.dt);
@@ -203,6 +218,11 @@ function render(){
  }
  if(!['runtime','residual'].includes(view)&&difference<1e-7)caption+=' The first two solutions coincide numerically; the cross and open-circle markers are intentionally overlaid.';
  latestSvg=`<svg xmlns="${ns}" font-size="24" viewBox="0 0 1220 ${scenes?765:495}" width="1220" height="${scenes?765:495}" role="img" aria-label="${esc(view)} comparison"><style>text{font-family:Arial,Helvetica,sans-serif;fill:#111}svg{background:white}</style><rect width="1220" height="${scenes?765:495}" fill="white"/>${content}</svg>`;
+ if(fullData.compact){
+  caption={trajectory:'Black squares: reference. Crosses: KFV. Circles: FGO. The box marks the enlarged interval.',
+    error:'Position error against reference. Up is signed.',residual:'Unweighted range residual norm (m).',
+    iterations:'Stored updates at the selected epoch.'}[view]||'';
+ }
  $('.figure').innerHTML=latestSvg;$('.caption').textContent=caption;
 }
 for(const button of root.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{view=button.dataset.view;$('.stats').style.display=(fullData.groups?.length&&['runtime','residual'].includes(view))?'none':'flex';$('.epoch-controls').style.display=(view==='runtime'||(view==='residual'&&fullData.groups?.length))?'none':'flex';$('.group-controls').style.display=fullData.groups?.length&&!['runtime','residual'].includes(view)?'flex':'none';root.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b===button));$('.error-controls').style.display=view==='error'&&data.real?'flex':'none';$('.detail-label').style.display=view==='iterations'?'none':'';$('.residual-controls').style.display=view==='residual'?'flex':'none';$('.iteration-controls').style.display=view==='iterations'?'flex':'none';if(view==='iterations')epoch.value=1;render();});
@@ -228,10 +248,24 @@ $('.play').addEventListener('click',()=>{
  $('.play').textContent='❚❚ Pause';$('.play').setAttribute('aria-label','Pause comparison');
  lastFrame=performance.now();timer=requestAnimationFrame(advance);
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
+const onVisibility=()=>{if(document.hidden)pause();};
+document.addEventListener('visibilitychange',onVisibility);
 $('.download').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(fullData)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='kfv-fgo-viewer-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 $('.export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([latestSvg],{type:'image/svg+xml'})),a=document.createElement('a');a.href=url;a.download=`kfv-fgo-${view}-epoch-${epoch.value}.svg`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+dispose=()=>{pause();if(pendingRender!==null)cancelAnimationFrame(pendingRender);document.removeEventListener('visibilitychange',onVisibility);};
 render();
+if(!root.querySelector('svg'))throw new Error('Plot did not render');
+}
+root.addEventListener('comparison-data',event=>{
+ try{
+  mount(event.detail.data);
+  root.dispatchEvent(new CustomEvent('comparison-ready',{detail:{revision:event.detail.revision}}));
+ }catch(error){
+  root.dispatchEvent(new CustomEvent('comparison-error',{detail:{revision:event.detail.revision,message:String(error)}}));
+ }
+});
+const initial=__PAYLOAD__;
+if(initial!==null)mount(initial);else root.hidden=true;
 })().catch(error=>{document.getElementById('__ID__').querySelector('.caption').textContent='Cannot open diagnostics: '+error.message;});
 </script>
 </div>

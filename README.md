@@ -9,13 +9,13 @@
 1. Run **Setup** once. Code and dependencies load automatically, with no source selection needed.
 2. Run the cell for **KFV vs KFV**, **KFV vs FGO**, or **FGO vs FGO** to open its workspace.
 3. Choose **Simulation** or **Real GNSS/INS**. Configure the two method cards, then click **Run comparison**. **Use saved results** is on by default.
-4. Inspect the plots and export with **Save SVG** or **Save data**.
+4. Inspect the plots and export with **Save SVG**.
 
 Both data sources are available inside every module. There is no separate real-data page or article-specific module. The Run button starts a background calculation. Stop ends after the current epoch and keeps the completed plots. The notebook stays responsive while the worker computes. Save outputs before the cloud session expires.
 
 ### Updating an already open Colab session
 
-After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.3 · Colab connected** before enabling Run.
+After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.4 · Colab connected** before enabling Run.
 
 If an old panel is frozen and even Stop does not respond, use **Runtime → Restart session**, then run Setup and the comparison cell. A page refresh alone does not reload the Python code. The new panel reports startup failures directly and acknowledges Stop immediately. Its live connection also reports a disconnected or unresponsive runtime instead of silently waiting.
 
@@ -23,7 +23,7 @@ If an old panel is frozen and even Stop does not respond, use **Runtime → Rest
 
 The three bundled recordings include precomputed results for all three modules' default settings, the matched Cauchy/Tukey comparisons, and Huber SW-FGO with windows of 5 and 20 states. These are complete independent solver runs, with their settings and provenance in [the preset manifest](kfv_fgo/precomputed/manifest.json).
 
-With **Use saved results** enabled, an exact match opens directly without parsing RINEX, aligning IMU, or solving again. The timeline, position errors, residuals and full iteration diagnostics remain available. The status explicitly says **Loaded saved results**. Timing values in those results describe the original solve, not the cache load or your current computer.
+With **Use saved results** enabled, an exact match opens directly without parsing RINEX, aligning IMU, or solving again. The timeline, position errors, residuals and iteration diagnostics remain available. The status explicitly says **Loaded saved results**. Timing values in those results describe the original solve, not the cache load or your current computer.
 
 Change a parameter and the panel computes a fresh result with live progress, then caches that completed run. Uncheck **Use saved results** to force a new calculation. Cache matching includes input-file contents, solver/evaluation source and the numerical configuration. It never substitutes a nearby setting or a different recording.
 
@@ -89,7 +89,7 @@ Truth is used only for evaluation, interpolated at overlapping UTC timestamps wi
 
 Both simulation and real-data comparisons update while solving. The worker alternates the two methods at each epoch, and the display refreshes up to about three times per second rather than sending a whole figure for every observation. Data loading is reported before the first result appears.
 
-- **Play / Pause** is available in the live preview. On completion, or when loading saved results, the original paper-style viewer opens automatically with the full curve and local enlargement. Its replay and slider run in the browser without a Python request for each frame. Choose **0.5×, 1×, 2× or 4×** playback speed. Scrubbing pauses playback, and Play at the end starts again.
+- **Play / Pause** is available in the live preview. On completion, or when loading saved results, the original paper-style viewer opens automatically with the full curve and local enlargement. Its replay and slider run in the browser without a Python request for each frame. Scrubbing pauses playback, and Play at the end starts again. The original viewer is displayed directly in the Colab output, with a shorter toolbar and captions. It stays visible after completion; the live preview is hidden only after the browser confirms that the replacement figure has rendered.
 - **Follow latest** tracks the newest completed pair of updates.
 - Drag **Time** backwards or forwards to examine completed epochs. This turns automatic following off, so incoming results do not move your selection.
 - The time label gives elapsed seconds and the epoch index, including irregular real-data intervals. **Detail (s)** controls the local time span.
@@ -120,11 +120,9 @@ Disable Gradual scale to reproduce the original fixed-scale estimator. It remain
 | Residual norm | Current post-fit or pre-fit / innovation Euclidean norm (m), not the full graph objective |
 | Truth measurement error | Simulation-only option within the residual view |
 | Iteration path | Actual per-iteration states and residual or objective; simulation adds range contours |
-| Solver difference | Real-data 3D separation of the two online solutions, not error against truth |
-| Used satellites | Pseudoranges actually entering the real-data update; downweighted observations still count |
 | Epoch / Detail / Play | Choose and replay the enlarged interval without recalculation |
 | Scene 1 / 2 enlargements | Optional medium street-region details, shared by both methods |
-| Save SVG / Save data | Editable vector figure / plotted data and diagnostics as JSON |
+| Save SVG | Export the displayed vector figure |
 
 Blue and red identify the left and right methods. Black squares mark truth, crosses mark filters, and open circles mark graphs. Matched estimates intentionally overlap. A robust estimate may have a larger raw residual norm while its position error is smaller. Interpret residuals with position error and used-satellite count. Objectives from different windows or losses are not directly comparable.
 

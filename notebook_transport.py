@@ -6,12 +6,21 @@ API, so progress does not depend on a background notebook asyncio task.
 """
 from html import escape
 import json
+import base64
+import gzip
+from pathlib import Path
 from uuid import uuid4
 
 from IPython.display import HTML, JSON, display
 
-UI_REVISION = '2026-11-15.3'
+UI_REVISION = '2026-11-15.4'
 _PANELS = {}
+
+
+def encode_viewer(payload):
+    text=json.dumps(payload,allow_nan=False,separators=(',',':'))
+    if len(text)<64000:return dict(encoding='json',data=payload)
+    return dict(encoding='gzip-base64',data=base64.b64encode(gzip.compress(text.encode(),mtime=0)).decode())
 
 
 def colab_output():
@@ -39,7 +48,7 @@ class ColabPanel:
         ui.run.disabled = True
         ui.connection.value = f'<small>UI {UI_REVISION} · Connecting Colab controls…</small>'
 
-    def poll(self, action='poll', viewer_revision=-1):
+    def poll(self, action='poll', viewer_revision=-1, rendered_revision=-1):
         if self.closed:
             return dict(closed=True, active=False)
         if not self.connected:
@@ -48,14 +57,15 @@ class ColabPanel:
             self.ui.connection.value = f'<small>UI {UI_REVISION} · Colab connected</small>'
         if action == 'stop':
             self.ui._stop()
+        self.ui._viewer_ready(rendered_revision)
         self.ui._drain_events()
         state=dict(closed=False, active=self.ui._busy)
         if viewer_revision!=self.ui._viewer_revision:
-            state['viewer']=dict(revision=self.ui._viewer_revision,html=self.ui._viewer_html)
+            state['viewer']=dict(revision=self.ui._viewer_revision,packet=self.ui._viewer_packet)
         return state
 
-    def _callback(self, action='poll', viewer_revision=-1):
-        return JSON(self.poll(action,viewer_revision))
+    def _callback(self, action='poll', viewer_revision=-1, rendered_revision=-1):
+        return JSON(self.poll(action,viewer_revision,rendered_revision))
 
     def close(self):
         self.closed = True
@@ -80,41 +90,53 @@ class ColabPanel:
         display(HTML(self._script()))
 
     def _script(self):
-        # This is an ordinary Colab HTML output, not widgets.HTML (which strips
-        # scripts). One request is in flight at a time, including when delayed.
-        return r'''<div id="__ID__" style="font:13px Arial;color:#52677b" role="status"></div>
-<iframe id="__ID___replay" title="Comparison replay" hidden
-  sandbox="allow-scripts allow-downloads" style="width:100%;height:760px;border:0"></iframe>
+        # Mount the original renderer in this Colab output, not in a second
+        # sandboxed iframe. It receives data without injecting executable HTML.
+        template=(Path(__file__).parent/'kfv_fgo'/'comparison.html').read_text()
+        plot=template.replace('__ID__',self.name+'_plot').replace('__PAYLOAD__','null').replace('__INTERVAL__','80')
+        bridge=r'''<div id="__ID__" style="font:13px Arial;color:#52677b" role="status"></div>
 <script>
 (() => {
   const note=document.getElementById('__ID__');
-  const replay=document.getElementById('__ID___replay');
+  const plot=document.getElementById('__ID___plot');
   const name=__NAME__;
-  let closed=false, viewerRevision=-1;
-  window.addEventListener('message',event=>{
-    if(event.source===replay.contentWindow && event.data?.channel===name &&
-       Number.isFinite(event.data.height)) replay.style.height=Math.max(200,event.data.height)+'px';
+  let closed=false, viewerRevision=-1, renderedRevision=-1, plotError='';
+  plot.addEventListener('comparison-ready',event=>{
+    renderedRevision=event.detail.revision;
+    plotError='';
+    google.colab.output?.setIframeHeight?.(-1,true,{interactive:true,maxHeight:99999});
   });
-  function showReplay(viewer) {
+  plot.addEventListener('comparison-error',event=>{
+    plotError='Cannot display the full plot: '+event.detail.message+'. The existing preview is kept.';
+    note.textContent=plotError;
+  });
+  async function showViewer(viewer) {
     viewerRevision=viewer.revision;
-    replay.hidden=!viewer.html;
-    if(!viewer.html){replay.srcdoc='';return;}
-    const resize=`<script>new ResizeObserver(()=>parent.postMessage({channel:${JSON.stringify(name)},height:Math.ceil(document.body.getBoundingClientRect().height)+8},'*')).observe(document.body);<\/script>`;
-    replay.srcdoc='<!doctype html><meta charset="utf-8"><style>body{margin:0}</style>'+viewer.html+resize;
+    let data=null;
+    try {
+      if(viewer.packet?.encoding==='json')data=viewer.packet.data;
+      else if(viewer.packet?.encoding==='gzip-base64'){
+        const bytes=Uint8Array.from(atob(viewer.packet.data),c=>c.charCodeAt(0));
+        data=JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+      }else if(viewer.packet)throw new Error('Unknown plot data format');
+      plot.dispatchEvent(new CustomEvent('comparison-data',{detail:{revision:viewer.revision,data}}));
+      if(renderedRevision!==viewer.revision && !plotError)throw new Error('The renderer did not confirm a visible plot');
+    }catch(error){plotError='Cannot load the full plot: '+String(error)+'. The existing preview is kept.';}
   }
   async function poll() {
     if (closed) return;
     const warning=setTimeout(() => {
-      note.textContent='Colab is not responding. Check the runtime connection; progress resumes after it reconnects.';
+      note.textContent='Colab is not responding. Check the runtime connection.';
     }, 10000);
     try {
-      const response=await google.colab.kernel.invokeFunction(name, [], {viewer_revision:viewerRevision});
+      const response=await google.colab.kernel.invokeFunction(name, [], {
+        viewer_revision:viewerRevision,rendered_revision:renderedRevision});
       const state=response.data['application/json'];
       clearTimeout(warning);
       if (!state || typeof state.active !== 'boolean') throw new Error('Invalid progress response');
       closed=state.closed;
-      if(state.viewer)showReplay(state.viewer);
-      note.textContent='';
+      if(state.viewer)await showViewer(state.viewer);
+      note.textContent=plotError;
       if (!closed) setTimeout(poll, state.active ? 200 : 1000);
     } catch (error) {
       clearTimeout(warning);
@@ -124,4 +146,5 @@ class ColabPanel:
   }
   poll();
 })();
-</script>'''.replace('__ID__', escape(self.name)).replace('__NAME__', json.dumps(self.name))
+</script>'''
+        return plot+bridge.replace('__ID__',escape(self.name)).replace('__NAME__',json.dumps(self.name))

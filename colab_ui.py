@@ -10,8 +10,8 @@ from time import monotonic
 from html import escape
 from pathlib import Path
 from datetime import datetime
-from experiment_common import animate_pair, animate_payload
-from notebook_transport import ColabPanel, colab_output, UI_REVISION
+from experiment_common import animate_payload, comparison_payload
+from notebook_transport import ColabPanel, colab_output, encode_viewer, UI_REVISION
 
 
 STYLE = '''<style>
@@ -143,7 +143,7 @@ class ComparisonUI:
         self._previous={}
         self._closed=False
         self._viewer_revision=0
-        self._viewer_html=None
+        self._viewer_packet=None
         defaults={'KFV vs KFV':('EKF','riEKF'),'KFV vs FGO':('iEKF','Re-FGO'),
                   'FGO vs FGO':('SW-FGO','SW-FGO')}
         self.left=MethodCard(MODULES[module][0],'left',defaults[module][0])
@@ -255,14 +255,21 @@ class ComparisonUI:
 
     def _show_details(self, _):
         if not hasattr(self,'experiment') and not hasattr(self,'cached_payload'):return
-        replay=(animate_payload(self.cached_payload,interval=80) if hasattr(self,'cached_payload')
-                else animate_pair(self.experiment,interval=80))
-        self._viewer_html=replay.data
+        payload=(self.cached_payload if hasattr(self,'cached_payload')
+                 else comparison_payload(self.experiment))
+        payload=dict(payload,compact=True)
+        self._viewer_packet=encode_viewer(payload)
         self._viewer_revision+=1
         if self._live is not None:self._live.play.playing=False
-        self.live_container.layout.display='none'
+        # Keep the existing result visible until the browser confirms the old
+        # renderer has actually produced an SVG. Sending data is not rendering.
         self.output.outputs=()
-        if self._colab_bridge is None:self.output.append_display_data(replay)
+        if self._colab_bridge is None:
+            self.output.append_display_data(animate_payload(payload,interval=80))
+
+    def _viewer_ready(self, revision):
+        if revision==self._viewer_revision and self._viewer_packet is not None:
+            self.live_container.layout.display='none'
 
     def _stop(self, _=None):
         if not self._busy:return
@@ -289,7 +296,7 @@ class ComparisonUI:
             # Direct state updates avoid output capture / clear_output messages
             # tied to a completed cell or widget callback.
             self.output.outputs=()
-            self._viewer_html=None
+            self._viewer_packet=None
             self._viewer_revision+=1
             self.live_container.children=[]
             self.live_container.layout.display=''

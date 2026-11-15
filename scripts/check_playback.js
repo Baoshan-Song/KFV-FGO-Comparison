@@ -20,13 +20,13 @@ function check(real) {
     const el=element();el.dataset.view=view;controls.set(`[data-view=${view}]`,el);return el;
   });
   const get=s=>{if(!controls.has(s))controls.set(s,element(s==='.span'?'8':s==='.epoch'||s==='.frame'?'15':s==='.speed'?'1':s==='.residual'?'postfit':s==='.error-component'?'horizontal':'linear'));return controls.get(s);};
-  const root={isConnected:true,querySelector:get,querySelectorAll:s=>s==='[data-view]'?tabs:[]};
-  const doc={hidden:false,getElementById:()=>root,listeners:{},addEventListener(type,fn){this.listeners[type]=fn;}};
+  const root={isConnected:true,innerHTML:template.slice(0,template.indexOf('<script>')),listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},dispatchEvent(event){this.listeners[event.type]?.(event);},querySelector:get,querySelectorAll:s=>s==='[data-view]'?tabs:[]};
+  const doc={hidden:false,getElementById:()=>root,listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},removeEventListener(type){delete this.listeners[type];}};
   let clock=0,nextId=0;const frames=new Map();
   const request=fn=>{frames.set(++nextId,fn);return nextId;},cancel=id=>frames.delete(id);
   function tick(ms){clock+=ms;const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn(clock));}
-  const source=template.split('<script>')[1].split('</script>')[0].replaceAll('__ID__','test').replace('__PAYLOAD__',JSON.stringify(payload)).replaceAll('__INTERVAL__','80');
-  new Function('document','requestAnimationFrame','cancelAnimationFrame','performance',source)(doc,request,cancel,{now:()=>clock});
+  const source=template.slice(template.indexOf('<script>')+8,template.lastIndexOf('</script>')).replaceAll('__ID__','test').replace('__PAYLOAD__',JSON.stringify(payload)).replaceAll('__INTERVAL__','80');
+  new Function('document','requestAnimationFrame','cancelAnimationFrame','performance','CustomEvent',source)(doc,request,cancel,{now:()=>clock},class{constructor(type,options){this.type=type;this.detail=options.detail;}});
   assert(get('.figure').innerHTML.includes('Complete trajectory'),'original full trajectory');
   assert(get('.figure').innerHTML.includes('stroke-dasharray="7 5"'),'method styles preserved');
   assert(!get('.figure').innerHTML.includes('NaN'),'finite SVG');
@@ -51,6 +51,19 @@ function check(real) {
   tabs.find(x=>x.dataset.view==='residual').listeners.click();
   assert(get('.figure').innerHTML.includes('Residual norm'),'residual view');
   assert(!get('.caption').textContent.startsWith('Cannot open'),'no renderer error');
+  let acknowledged=-1;
+  root.addEventListener('comparison-ready',event=>{acknowledged=event.detail.revision;});
+  root.dispatchEvent({type:'comparison-data',detail:{revision:2,data:{...payload,compact:true}}});
+  assert(acknowledged===2&&!root.hidden,'render acknowledgement after SVG');
+  assert(get('.caption').textContent.length<120,'concise caption');
+  for(const selector of ['[data-view=difference]','[data-view=satellites]','.speed-label','.epoch-label','details'])
+    assert(get(selector).style.display==='none','compact controls '+selector);
+  const saved=get('.figure').innerHTML;
+  tick(2000);assert(get('.figure').innerHTML===saved&&!root.hidden,'plot persists after completion');
+  root.dispatchEvent({type:'comparison-data',detail:{revision:3,data:null}});
+  assert(root.hidden,'explicit next-run clear');
+  root.dispatchEvent({type:'comparison-data',detail:{revision:4,data:payload}});
+  assert(acknowledged===4&&!root.hidden,'rerun restores plot');
   log('PASS '+(real?'real':'simulation')+' original styles, Play/Pause, speed, seek, endpoint, errors and residuals');
 }
 check(false);check(true);
