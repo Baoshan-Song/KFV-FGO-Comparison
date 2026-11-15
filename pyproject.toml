@@ -15,7 +15,7 @@ real = ["pyrtklib==0.2.7"]
 plots = ["matplotlib>=3.8"]
 
 [tool.setuptools]
-py-modules = ["experiment_common", "real_experiment", "colab_comparison", "colab_ui", "live_comparison", "run_cache", "schur_window_benchmark"]
+py-modules = ["experiment_common", "real_experiment", "colab_comparison", "colab_ui", "live_comparison", "run_cache", "notebook_transport", "schur_window_benchmark"]
 
 [tool.setuptools.packages.find]
 include = ["kfv_fgo*", "core*", "config*", "data*"]

@@ -1,6 +1,5 @@
 """Three notebook workspaces with method-aware controls and shared data settings."""
 import ipywidgets as W
-from IPython.display import display, clear_output
 
 from colab_comparison import MODULES, FILTERS, GRAPHS, prepare_comparison
 from live_comparison import LiveComparison, run_interleaved
@@ -12,6 +11,7 @@ from html import escape
 from pathlib import Path
 from datetime import datetime
 from experiment_common import animate_pair, animate_payload
+from notebook_transport import ColabPanel, colab_output, UI_REVISION
 
 
 STYLE = '''<style>
@@ -138,6 +138,10 @@ class ComparisonUI:
     def __init__(self, module):
         if module not in MODULES:raise ValueError(module)
         self.module=module
+        self._busy=False
+        self._colab_bridge=None
+        self._previous={}
+        self._closed=False
         defaults={'KFV vs KFV':('EKF','riEKF'),'KFV vs FGO':('iEKF','Re-FGO'),
                   'FGO vs FGO':('Re-FGO','SW-FGO')}
         self.left=MethodCard(MODULES[module][0],'left',defaults[module][0])
@@ -198,14 +202,15 @@ class ComparisonUI:
         self.stop=W.Button(description='Stop',icon='stop',disabled=True,layout=W.Layout(width='90px'))
         self.stop_event=Event()
         self.use_cache=W.Checkbox(value=True,description='Use saved results',indent=False)
-        self.stop.on_click(lambda _:self.stop_event.set())
+        self.stop.on_click(self._stop)
+        self.connection=W.HTML(f'<div class="kfv-note">UI {UI_REVISION}</div>')
         self.widget=W.VBox([W.HTML(STYLE),_heading('⇄',module,'Choose data, configure the two methods, then run.'),
             _card([_heading('◉','Data source'),self.source,self.dataset_row,self.data_note]),
             W.HBox([self.left.widget,self.right.widget],layout=W.Layout(justify_content='space-between',flex_flow='row wrap')),
             self.match_row,_heading('⚙','Shared data settings','Optional. Defaults are ready to run.'),
             self.sim_panel,self.real_panel,
             W.HBox([self.run,self.stop,self.use_cache],layout=W.Layout(align_items='center',margin='14px 0 4px')),
-            self.status,
+            self.connection,self.status,
             W.HTML('<div class="kfv-note">Stop ends after the current epoch. Drag the live time slider to inspect completed results.</div>'),
             self.live_container,self.details,self.output],layout=W.Layout(width='100%')).add_class('kfv-workspace')
         self._syncing=False
@@ -245,39 +250,60 @@ class ComparisonUI:
 
     def _show_details(self, _):
         if not hasattr(self,'experiment') and not hasattr(self,'cached_payload'):return
-        with self.output:
-            clear_output(wait=True)
-            display(animate_payload(self.cached_payload,interval=80) if hasattr(self,'cached_payload')
-                    else animate_pair(self.experiment,interval=80))
+        self.output.outputs=()
+        self.output.append_display_data(
+            animate_payload(self.cached_payload,interval=80) if hasattr(self,'cached_payload')
+            else animate_pair(self.experiment,interval=80))
+
+    def _stop(self, _=None):
+        if not self._busy:return
+        self.stop_event.set()
+        self._stage='Stopping after the current operation…'
+        self.status.value=f'<b>{self._stage}</b>'
 
     def _run(self, _):
-        if self.run.disabled:return
-        # Widget comms must stay on the notebook event-loop thread. Creating or
-        # changing widgets from the solver thread can stall Colab after Loading.
-        try:loop=asyncio.get_running_loop()
-        except RuntimeError:
-            self.status.value='<b>No notebook event loop.</b> Run this panel in Colab or Jupyter.'
-            return
-        self.run.disabled=True;self.stop.disabled=False;self.details.disabled=True;self.stop_event.clear()
-        self.status.value='<b>Starting…</b>'
-        with self.output:clear_output(wait=False)
-        self.live_container.children=[]
-        for field in ('experiment','cached_payload'):
-            if hasattr(self,field):delattr(self,field)
-        # Snapshot configuration before the worker starts. Live controls stay responsive.
-        args=(self.module,self.source.value,self.left.values(),self.right.values())
-        options=dict(simulation={k:v.value for k,v in self.sim.items()},
-                     real={k:v.value for k,v in self.real.items()},match_filter_settings=self.match.value)
-        reuse=self.use_cache.value
-        controls=[self.source,self.dataset,self.match,self.use_cache,*self.sim.values(),*self.real.values()]
-        for card in (self.left,self.right):
-            controls += [card.method,card.iterations,card.kernel,card.delta,card.window,card.numerical,card.continuation]
-        previous={id(c):(c,c.disabled) for c in controls}
-        for control,_ in previous.values():control.disabled=True
-        events=SimpleQueue()
+        if self._busy or self.run.disabled:return
+        try:
+            # Colab explicitly polls from fresh kernel callbacks. Do not depend
+            # on an asyncio task surviving the widget's originating request.
+            loop=None if self._colab_bridge else asyncio.get_running_loop()
+            self._busy=True
+            self._finished=False
+            self._live=None
+            self._started=monotonic()
+            self._stage='Starting worker…'
+            self._events=SimpleQueue()
+            self.run.disabled=True;self.stop.disabled=False;self.details.disabled=True
+            self.stop_event.clear()
+            self.status.value=f'<b>{self._stage}</b>'
+            # Direct state updates avoid output capture / clear_output messages
+            # tied to a completed cell or widget callback.
+            self.output.outputs=()
+            self.live_container.children=[]
+            for field in ('experiment','cached_payload'):
+                if hasattr(self,field):delattr(self,field)
+            args=(self.module,self.source.value,self.left.values(),self.right.values())
+            options=dict(simulation={k:v.value for k,v in self.sim.items()},
+                         real={k:v.value for k,v in self.real.items()},match_filter_settings=self.match.value)
+            reuse=self.use_cache.value
+            controls=[self.source,self.dataset,self.match,self.use_cache,*self.sim.values(),*self.real.values()]
+            for card in (self.left,self.right):
+                controls += [card.method,card.iterations,card.kernel,card.delta,card.window,card.numerical,card.continuation]
+            self._previous={id(c):(c,c.disabled) for c in controls}
+            for control,_ in self._previous.values():control.disabled=True
+            self._start_worker(args,options,reuse)
+            if loop is not None:self.ui_task=loop.create_task(self._pump())
+        except Exception as error:
+            self.stop_event.set()
+            self._stage=f'Start failed: {type(error).__name__}: {error}'
+            self.status.value=f'<b>{escape(self._stage)}</b>'
+            self._finished=True
+            if not getattr(self,'worker',None) or not self.worker.is_alive():self._restore_controls()
+
+    def _start_worker(self,args,options,reuse):
         def report(message):
             if self.stop_event.is_set():raise InterruptedError('Stopped')
-            events.put(('status',message))
+            self._events.put(('status',message))
         def worker():
             try:
                 if args[1]=='Real GNSS/INS' and reuse:
@@ -287,12 +313,12 @@ class ComparisonUI:
                     payload=load_result_cache([left,right])
                     report('Saved-result check complete')
                     if payload is not None:
-                        events.put(('cached',payload));return
+                        self._events.put(('cached',payload));return
                 data,left,right=prepare_comparison(*args,**options,progress=report,stop=self.stop_event)
                 if self.stop_event.is_set():
                     raise InterruptedError('Stopped during loading')
-                events.put(('ready',(data,[left,right])))
-                experiment=run_interleaved(data,[left,right],lambda i,e:events.put(('epoch',(i,e))),self.stop_event)
+                self._events.put(('ready',(data,[left,right])))
+                experiment=run_interleaved(data,[left,right],lambda i,e:self._events.put(('epoch',(i,e))),self.stop_event)
                 if experiment is None:
                     raise InterruptedError('Stopped. Completed epochs remain available.')
                 report('Saving completed results')
@@ -302,54 +328,71 @@ class ComparisonUI:
                     folder=Path('artifacts/colab')/self.module.lower().replace(' ','-')/datetime.now().strftime('%Y%m%d-%H%M%S-%f')
                     save_real_experiment(experiment,folder)
                     save_result_cache(experiment)
-                events.put(('complete',experiment))
+                self._events.put(('complete',experiment))
             except InterruptedError as error:
-                events.put(('stopped',str(error)))
+                self._events.put(('stopped',str(error)))
             except Exception as error:
-                events.put(('error',f'{type(error).__name__}: {error}'))
-            finally:events.put(('done',None))
-        async def pump():
-            live=None;stage='Starting';started=monotonic();finished=False
-            try:
-                while not finished:
-                    deadline=monotonic()+.035
-                    while monotonic()<deadline:
-                        try:kind,value=events.get_nowait()
-                        except Empty:break
-                        if kind=='status':stage=value
-                        elif kind=='ready':
-                            live=LiveComparison(*value);self.live_container.children=[live.widget]
-                            stage='Computing both methods'
-                        elif kind=='epoch':live.receive(*value)
-                        elif kind=='cached':
-                            self.cached_payload=value
-                            live=LiveComparison.from_payload(value);self.live_container.children=[live.widget]
-                            self.details.disabled=False
-                            stage=f'Loaded saved results · {value["frames"]-1} updates · stored solver timings'
-                        elif kind=='complete':
-                            self.experiment=value;live.finish();self.details.disabled=False
-                            stage='Complete. Scrub the timeline or open full diagnostics'
-                        elif kind in ('stopped','error'):
-                            if live is not None:live.finish(stopped=True)
-                            stage=value
-                            if kind=='error':self.output.append_stdout(value+'\n')
-                        elif kind=='done':finished=True;break
-                    self.status.value=f'<b>{escape(stage)}</b> · {monotonic()-started:.1f} s'
-                    if not finished:await asyncio.sleep(.05)
-            except Exception as error:
-                self.stop_event.set()
-                self.status.value=f'<b>Display error:</b> {escape(str(error))}'
-            finally:
-                if self.worker.is_alive():
-                    self.stop_event.set()
-                    while self.worker.is_alive():await asyncio.sleep(.05)
-                for control,disabled in previous.values():control.disabled=disabled
-                self.run.disabled=False;self.stop.disabled=True;self._sync()
-        self.worker=Thread(target=worker,daemon=True)
+                self._events.put(('error',f'{type(error).__name__}: {error}'))
+            finally:self._events.put(('done',None))
+        self.worker=Thread(target=worker,name='kfv-comparison',daemon=True)
         self.worker.start()
-        self.ui_task=loop.create_task(pump())
+
+    def _drain_events(self):
+        """A bounded, synchronous UI update, also callable without asyncio."""
+        if not self._busy:return
+        try:
+            deadline=monotonic()+.035
+            while not self._finished and monotonic()<deadline:
+                try:kind,value=self._events.get_nowait()
+                except Empty:break
+                if kind=='status':
+                    if not self.stop_event.is_set():self._stage=value
+                elif kind=='ready':
+                    self._live=LiveComparison(*value)
+                    self.live_container.children=[self._live.widget]
+                    if not self.stop_event.is_set():self._stage='Computing both methods'
+                elif kind=='epoch':self._live.receive(*value)
+                elif kind=='cached':
+                    if self.stop_event.is_set():
+                        self._stage='Stopped'
+                        continue
+                    self.cached_payload=value
+                    self._live=LiveComparison.from_payload(value)
+                    self.live_container.children=[self._live.widget]
+                    self.details.disabled=False
+                    self._stage=f'Loaded saved results · {value["frames"]-1} updates · stored solver timings'
+                elif kind=='complete':
+                    self.experiment=value;self._live.finish();self.details.disabled=False
+                    self._stage='Complete. Scrub the timeline or open full diagnostics'
+                elif kind in ('stopped','error'):
+                    if self._live is not None:self._live.finish(stopped=True)
+                    self._stage=value
+                    if kind=='error':self.output.append_stdout(value+'\n')
+                elif kind=='done':self._finished=True
+            self.status.value=f'<b>{escape(self._stage)}</b> · {monotonic()-self._started:.1f} s'
+        except Exception as error:
+            self.stop_event.set()
+            self._finished=True
+            self._stage=f'Display error: {type(error).__name__}: {error}'
+            self.status.value=f'<b>{escape(self._stage)}</b>'
+        if self._finished and not self.worker.is_alive():self._restore_controls()
+
+    def _restore_controls(self):
+        for control,disabled in self._previous.values():control.disabled=disabled
+        self._previous={}
+        self._busy=False
+        self.run.disabled=False;self.stop.disabled=True;self._sync()
+
+    async def _pump(self):
+        # Non-Colab notebooks use their event loop. Colab takes the explicit
+        # request path instead (see notebook_transport.py).
+        while self._busy:
+            self._drain_events()
+            if self._busy:await asyncio.sleep(.05)
 
 
 def comparison_ui(module):
-    """Keep the controller alive through widget callbacks and return its root."""
-    return ComparisonUI(module).widget
+    """Return the workspace, with an explicit request transport in Colab."""
+    ui=ComparisonUI(module)
+    output=colab_output()
+    return ColabPanel(ui,output) if output is not None else ui.widget

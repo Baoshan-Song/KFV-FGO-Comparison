@@ -13,6 +13,12 @@
 
 Both data sources are available inside every module. There is no separate real-data page or article-specific module. The Run button starts a background calculation. Stop ends after the current epoch and keeps the completed plots. The notebook stays responsive while the worker computes. Save outputs before the cloud session expires.
 
+### Updating an already open Colab session
+
+After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.2 · Colab connected** before enabling Run.
+
+If an old panel is frozen and even Stop does not respond, use **Runtime → Restart session**, then run Setup and the comparison cell. A page refresh alone does not reload the Python code. The new panel reports startup failures directly and acknowledges Stop immediately. Its live connection also reports a disconnected or unresponsive runtime instead of silently waiting.
+
 ### Open real-data results immediately
 
 The three bundled recordings include precomputed results for all three modules' default settings, the matched Cauchy/Tukey comparisons, and Huber SW-FGO with windows of 5 and 20 states. These are complete independent solver runs, with their settings and provenance in [the preset manifest](kfv_fgo/precomputed/manifest.json).
@@ -21,7 +27,7 @@ With **Use saved results** enabled, an exact match opens directly without parsin
 
 Change a parameter and the panel computes a fresh result with live progress, then caches that completed run. Uncheck **Use saved results** to force a new calculation. Cache matching includes input-file contents, solver/evaluation source and the numerical configuration. It never substitutes a nearby setting or a different recording.
 
-Fresh real-data loading reports file reading, satellite-state computation, IMU alignment and initialization separately. Parsed observations are reused in the current session. IMU intervals use binary time indexing; this preserves the original interpolated values while avoiding repeated scans of the entire recording. Notebook widgets are updated only on the main event loop; the worker sends numerical results through a queue. Errors are displayed in the status rather than leaving a permanent loading message.
+Fresh real-data loading reports file reading, satellite-state computation, IMU alignment and initialization separately. Parsed observations are reused in the current session. IMU intervals use binary time indexing; this preserves the original interpolated values while avoiding repeated scans of the entire recording. The worker sends numerical results through a queue. In Colab, short browser-to-kernel requests update widgets, so progress does not depend on a background asynchronous task continuing after a cell returns. Errors are displayed in the status rather than leaving a permanent loading message.
 
 To regenerate the bundled results locally, run `python scripts/precompute_colab.py --refresh`. The script uses the same public estimator paths as a fresh UI run.
 

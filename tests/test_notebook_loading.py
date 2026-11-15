@@ -3,7 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import get_ident
-from time import sleep
+from time import sleep, monotonic
 import unittest
 from unittest.mock import patch
 
@@ -12,6 +12,100 @@ from colab_ui import ComparisonUI
 from colab_comparison import prepare_comparison
 from live_comparison import LiveComparison
 from run_cache import load_result_cache, method_key
+from notebook_transport import ColabPanel, close_panels
+
+
+class ColabRequestTests(unittest.TestCase):
+    """No event loop, no await and no cell kept running to drive the UI."""
+    def setUp(self):
+        self.callbacks={}
+        class Output:
+            register_callback=lambda _,name,fn:self.callbacks.__setitem__(name,fn)
+            unregister_callback=lambda _,name:self.callbacks.pop(name)
+        self.output=Output()
+
+    def tearDown(self):
+        close_panels()
+
+    def panel(self,module='KFV vs FGO'):
+        ui=ComparisonUI(module);ui.sim['num_steps'].value=30
+        panel=ColabPanel(ui,self.output)
+        with patch('notebook_transport.display'):
+            panel._ipython_display_()
+        self.assertTrue(ui.run.disabled)
+        self.callbacks[panel.name]()
+        self.assertFalse(ui.run.disabled)
+        self.assertIn('Colab connected',ui.connection.value)
+        return ui,panel
+
+    def finish(self,ui,panel):
+        deadline=monotonic()+5
+        while ui._busy and monotonic()<deadline:
+            self.callbacks[panel.name]()
+            sleep(.01)
+        self.assertFalse(ui._busy,ui.status.value)
+        self.assertFalse(ui.run.disabled)
+        self.assertTrue(ui.stop.disabled)
+
+    def test_colab_runs_and_restarts_without_notebook_asyncio(self):
+        ui,panel=self.panel()
+        for _ in range(2):
+            with patch('colab_ui.asyncio.get_running_loop',side_effect=AssertionError('Colab must not use asyncio')):
+                ui.run.click()
+            self.finish(ui,panel)
+            self.assertIn('Complete',ui.status.value)
+            self.assertFalse(ui.details.disabled)
+            self.assertFalse(hasattr(ui,'ui_task'))
+
+    def test_stop_is_acknowledged_then_can_run_again(self):
+        ui,panel=self.panel()
+        def loading(*args,**kwargs):
+            while not kwargs['stop'].is_set():sleep(.005)
+            kwargs['progress']('Reading observations')
+        with patch('colab_ui.prepare_comparison',side_effect=loading):
+            ui.run.click()
+            ui.stop.click()
+            self.assertIn('Stopping',ui.status.value)
+            self.finish(ui,panel)
+        self.assertIn('Stopped',ui.status.value)
+        ui.run.click();self.finish(ui,panel)
+        self.assertIn('Complete',ui.status.value)
+
+    def test_cached_real_result_uses_same_request_path(self):
+        ui,panel=self.panel()
+        ui.source.value='Real GNSS/INS'
+        with patch('colab_ui.prepare_comparison', wraps=prepare_comparison) as prepare:
+            ui.run.click();self.finish(ui,panel)
+        self.assertIn('Loaded saved results',ui.status.value)
+        self.assertTrue(all(call.kwargs.get('load_observations') is False for call in prepare.call_args_list))
+        self.assertEqual(ui._live.timeline.max,656)
+
+    def test_startup_failure_visible_and_retry_enabled(self):
+        ui,panel=self.panel()
+        with patch.object(ui.left,'values',side_effect=ValueError('bad configuration')):
+            ui.run.click()
+        self.assertIn('Start failed: ValueError: bad configuration',ui.status.value)
+        self.assertFalse(ui.run.disabled)
+        self.assertFalse(ui._busy)
+        ui.run.click();self.finish(ui,panel)
+        self.assertIn('Complete',ui.status.value)
+
+    def test_worker_failure_visible(self):
+        ui,panel=self.panel()
+        with patch('colab_ui.prepare_comparison',side_effect=ValueError('missing observations')):
+            ui.run.click();self.finish(ui,panel)
+        self.assertIn('missing observations',ui.status.value)
+
+    def test_reopening_module_closes_old_callback_only(self):
+        ui,old=self.panel()
+        other_ui,other=self.panel('KFV vs KFV')
+        _,new=self.panel()
+        self.assertTrue(old.closed)
+        self.assertTrue(ui.run.disabled)
+        self.assertNotIn(old.name,self.callbacks)
+        self.assertIn(new.name,self.callbacks)
+        self.assertIn(other.name,self.callbacks)
+        self.assertFalse(other_ui.run.disabled)
 
 
 class NotebookJobTests(unittest.IsolatedAsyncioTestCase):
