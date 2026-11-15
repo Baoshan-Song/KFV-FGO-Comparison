@@ -15,16 +15,28 @@ from notebook_transport import ColabPanel, colab_output, encode_viewer, UI_REVIS
 
 
 STYLE = '''<style>
-.kfv-workspace {font-family:Arial,sans-serif;max-width:1160px;padding:16px;
+.kfv-workspace {font-family:Arial,sans-serif;max-width:1160px;padding:12px;
 background:#f4f7fb;border:1px solid #dce5ef;border-radius:14px;color:#223449}
-.kfv-card {background:#fff;border:1px solid #dce5ef;border-radius:12px;padding:16px;margin:6px 0}
+.kfv-workspace * {box-sizing:border-box}
+.kfv-card {background:#fff;border:1px solid #dce5ef;border-radius:12px;padding:12px;margin:6px 0}
 .kfv-card-blue {border-top:4px solid #1857d3}.kfv-card-red {border-top:4px solid #e3272b}
-.kfv-heading {font-size:18px;font-weight:600;margin:0 0 5px}
-.kfv-help {font-size:13px;line-height:1.5;color:#52677b;margin:0 0 9px}
-.kfv-row {margin:5px 0;padding:5px 0;border-bottom:1px solid #eff3f7}
+.kfv-card-data {border:2px solid #169b91;border-top:4px solid #169b91;background:#fcfffe}
+.kfv-card-data .kfv-icon {background:#e5f5f1;color:#087f76}
+.kfv-heading {font-size:16px;font-weight:600;margin:0 0 4px}
+.kfv-help {font-size:12px;line-height:1.4;color:#52677b;margin:0 0 7px}
+.kfv-row {margin:2px 0;padding:6px 0;border-bottom:1px solid #eff3f7;min-height:45px}
 .kfv-icon {display:inline-block;background:#eaf2fb;color:#1857d3;border-radius:7px;
-width:27px;text-align:center;padding:4px;margin-right:7px}
-.kfv-label {font-size:14px;font-weight:600}.kfv-note {font-size:12px;color:#65788b;line-height:1.4}
+width:23px;text-align:center;padding:3px;margin-right:5px}
+.kfv-label {font-size:12px;font-weight:600}.kfv-note {font-size:11px;color:#65788b;line-height:1.35}
+.kfv-field-label {font-size:12px;font-weight:600;line-height:1.3}
+.kfv-field-hint {font-size:10px;color:#65788b;line-height:1.3;margin-top:2px}
+.kfv-group-title {font-size:12px;font-weight:700;color:#087f76;margin:10px 0 3px}
+.kfv-data-row {padding:4px 0;min-height:40px;border-bottom:1px solid #edf3f1}
+.kfv-data-row input {text-align:right}
+.kfv-workspace .widget-text input,.kfv-workspace select {border:1px solid #cfdae5;border-radius:5px;font-size:12px}
+.kfv-workspace .widget-html-content {white-space:normal;overflow-wrap:break-word}
+.kfv-section-toggle {text-align:left!important;background:#f0f7f5!important;color:#35766f!important;box-shadow:none!important;font-size:11px!important}
+.kfv-source .widget-toggle-button {font-size:11px;border-radius:6px!important}
 .kfv-workspace .widget-label {color:#334b63}.kfv-workspace input:disabled,
 .kfv-workspace select:disabled {color:#8592a0;background:#f0f3f6}
 .kfv-workspace .widget-button {border-radius:7px}
@@ -33,19 +45,38 @@ width:27px;text-align:center;padding:4px;margin-right:7px}
 
 def _heading(icon, title, description=''):
     return W.HTML(f'<div class="kfv-heading"><span class="kfv-icon">{icon}</span>{title}</div>'
-                  f'<div class="kfv-help">{description}</div>')
+                  + (f'<div class="kfv-help">{description}</div>' if description else ''))
 
 
 def _row(icon, label, help_text, control):
     text = W.HTML(f'<span class="kfv-icon">{icon}</span><span class="kfv-label">{label}</span>'
-                  f'<div class="kfv-note">{help_text}</div>', layout=W.Layout(width='44%', min_width='170px'))
-    control.layout = W.Layout(width='54%', min_width='180px')
+                  f'<div class="kfv-note">{help_text}</div>', layout=W.Layout(width='53%', min_width='120px'))
+    control.layout = W.Layout(width='45%', min_width='115px',max_width='160px')
     return W.HBox([text, control], layout=W.Layout(align_items='center', flex_flow='row wrap',
                                                 justify_content='space-between')).add_class('kfv-row')
 
 
 def _card(children, width='100%'):
     return W.VBox(children, layout=W.Layout(width=width, min_width='300px')).add_class('kfv-card')
+
+
+def _data_row(label, control, hint=''):
+    text=W.HTML(f'<div class="kfv-field-label">{escape(label)}</div>'
+                + (f'<div class="kfv-field-hint">{escape(hint)}</div>' if hint else ''),
+                layout=W.Layout(width='64%',min_width='140px'))
+    control.layout=W.Layout(width='32%',min_width='80px',max_width='112px')
+    return W.HBox([text,control],layout=W.Layout(width='100%',align_items='center',
+                  justify_content='space-between')).add_class('kfv-data-row')
+
+
+def _group(title, rows):
+    return W.VBox([W.HTML(f'<div class="kfv-group-title">{escape(title)}</div>'),*rows],
+                  layout=W.Layout(width='100%'))
+
+
+def _number(value,low,high,step=1,integer=False):
+    cls=W.BoundedIntText if integer else W.BoundedFloatText
+    return cls(value=value,min=low,max=high,step=step)
 
 
 def _sections(children, titles, selected_index=None):
@@ -59,7 +90,7 @@ def _sections(children, titles, selected_index=None):
         opened = index == selected_index
         content.layout.display = '' if opened else 'none'
         toggle = W.Button(description=('▾ ' if opened else '▸ ') + title,
-                          layout=W.Layout(width='100%', height='38px'),
+                          layout=W.Layout(width='100%', height='30px'),
                           tooltip='Show or hide these settings')
         toggle.add_class('kfv-section-toggle')
 
@@ -110,7 +141,8 @@ class MethodCard:
                 self.iteration_row,self.kernel_row,self.delta_row,self.continuation_row]
         if kind == 'fgo': rows += [self.window_row,self.numerical_row]
         rows += [self.note]
-        self.widget = _card(rows,'49%').add_class('kfv-card-blue' if side == 'left' else 'kfv-card-red')
+        self.widget = _card(rows,'32%').add_class('kfv-card-blue' if side == 'left' else 'kfv-card-red')
+        self.widget.layout.flex='1 1 300px'
         self.method.observe(self._changed,names='value')
         self.kernel.observe(self._kernel_changed,names='value')
         self.apply_rules()
@@ -179,49 +211,54 @@ class ComparisonUI:
                 card.method.disabled=True
             self.right.window.value=20
         self.source=W.ToggleButtons(options=['Simulation','Real GNSS/INS'],value='Simulation',
-                                     icons=['flask','globe'],style={'button_width':'170px'})
+                                     style={'button_width':'132px'},layout=W.Layout(width='100%')).add_class('kfv-source')
         self.dataset=W.Dropdown(options=['medium','deep','harsh'],value='medium')
-        self.dataset_row=_row('◉','Recording','Bundled UrbanNav data, loaded automatically',self.dataset)
+        self.dataset_row=_data_row('Recording',self.dataset,'UrbanNav, loaded automatically')
         self.sim={
-            'num_steps':_slider(100,30,300,10,True), 'anchor_radius':_slider(200,100,1000,25),
-            'seed':W.IntText(value=7), 'white_sigma':_log(.1,-3,2),
-            'outlier_weight':_slider(.2,0.,1.,.05), 'outlier_mean':_slider(0.,-100.,100.,1.),
-            'outlier_sigma':_log(10.,-2,2),
-            'initial_error_x':_slider(100.,-500.,500.,5.),
-            'initial_error_y':_slider(-100.,-500.,500.,5.)}
+            'num_steps':_number(100,30,300,10,True), 'anchor_radius':_number(200,105,1000,25),
+            'seed':_number(7,0,2147483647,1,True), 'white_sigma':_number(.1,.001,100,.1),
+            'outlier_weight':_number(.2,0.,1.,.05), 'outlier_mean':_number(0.,-100.,100.,1.),
+            'outlier_sigma':_number(10.,.01,100,1),
+            'initial_error_x':_number(100.,-500.,500.,5.),
+            'initial_error_y':_number(-100.,-500.,500.,5.)}
         self.real={'dataset':self.dataset,'data_directory':W.Text(placeholder='Blank uses the selected recording'),
-            'minimum_elevation_deg':_slider(-90.,-90.,90.,5.),'minimum_snr_dbhz':_slider(0.,0.,60.,1.),
-            'position_process_std_m':_log(.3,-4,2),'velocity_process_std_mps':_log(.15,-4,2),
-            'bias_process_std_mps2':_log(.01,-6,1),'clock_process_std_m':_log(100.,-2,4),
+            'minimum_elevation_deg':_number(-90.,-90.,90.,5.),'minimum_snr_dbhz':_number(0.,0.,60.,1.),
+            'position_process_std_m':_number(.3,.0001,100,.1),'velocity_process_std_mps':_number(.15,.0001,100,.05),
+            'bias_process_std_mps2':_number(.01,.000001,10,.001),'clock_process_std_m':_number(100.,.01,10000,10),
             'gps_minus_utc_s':W.BoundedIntText(value=18,min=0,max=100)}
-        self.sim_data=_card([
-            _row('●','Epochs','Number of states, including the initial prior',self.sim['num_steps']),
-            _row('◎','Emitter radius (m)','Range-source geometry, not satellite altitude',self.sim['anchor_radius']),
-            _row('σ','Range noise (m)','Nominal measurement standard deviation',self.sim['white_sigma'])])
-        self.sim_faults=_card([
-            _row('%','Outlier probability','Zero generates nominal Gaussian noise only',self.sim['outlier_weight']),
-            _row('↥','Outlier mean (m)','Mean of the second Gaussian component',self.sim['outlier_mean']),
-            _row('σ','Outlier spread (m)','Standard deviation of that component',self.sim['outlier_sigma'])])
-        self.sim_initial=_card([
-            _row('X','Initial X offset (m)','Shared by both methods',self.sim['initial_error_x']),
-            _row('Y','Initial Y offset (m)','Shared by both methods',self.sim['initial_error_y']),
-            _row('#','Random seed','Keep unchanged for a controlled comparison',self.sim['seed'])])
-        self.sim_panel=_sections(children=[self.sim_data,self.sim_faults,self.sim_initial],selected_index=None,
-                                     titles=['◉ Geometry and nominal noise','⚑ Outlier simulation','↗ Initialization and repeatability'])
-        self.real_noise=_card([
-            _row('p','Position (m)','Process standard deviation per GNSS interval',self.real['position_process_std_m']),
-            _row('v','Velocity (m/s)','Process standard deviation per GNSS interval',self.real['velocity_process_std_mps']),
-            _row('b','Accelerometer bias (m/s²)','Process standard deviation per GNSS interval',self.real['bias_process_std_mps2']),
-            _row('t','Receiver clock (m)','Process standard deviation per GNSS interval',self.real['clock_process_std_m'])])
-        self.real_quality=_card([
-            _row('∠','Minimum elevation (deg)','−90 disables the optional elevation gate',self.real['minimum_elevation_deg']),
-            _row('▥','Minimum SNR (dB-Hz)','Zero disables the optional SNR gate',self.real['minimum_snr_dbhz'])])
-        self.real_files=_card([
-            _row('▣','Custom data directory','RINEX observations/navigation and Xsens data. Optional truth file.',self.real['data_directory']),
-            _row('◷','GPS − UTC (s)','Historical offset for the recording',self.real['gps_minus_utc_s'])])
-        self.real_panel=_sections(children=[self.real_noise,self.real_quality,self.real_files],selected_index=None,
-                                    titles=['σ Process uncertainty','◉ GNSS quality gates','▣ Custom data and time'])
+        self.sim_data=_group('Nonlinearity & nominal noise',[
+            _data_row('Emitter radius (m)',self.sim['anchor_radius'],'Closer to the 100 m path = more curvature'),
+            _data_row('Range noise std (m)',self.sim['white_sigma'],'Nominal Gaussian component')])
+        self.sim_faults=_group('Non-Gaussian noise',[
+            _data_row('Outlier probability',self.sim['outlier_weight'],'0 = nominal noise only'),
+            _data_row('Outlier bias (m)',self.sim['outlier_mean'],'Mean of the second component'),
+            _data_row('Outlier std (m)',self.sim['outlier_sigma'],'Spread of the second component')])
+        self.sim_initial=W.VBox([
+            _data_row('Epochs',self.sim['num_steps'],'Includes the initial state'),
+            _data_row('Initial X offset (m)',self.sim['initial_error_x']),
+            _data_row('Initial Y offset (m)',self.sim['initial_error_y']),
+            _data_row('Random seed',self.sim['seed'],'Keep fixed when comparing methods')])
+        self.sim_extra=_sections(children=[self.sim_initial],titles=['Initial guess & repeatability'])
+        self.sim_panel=W.VBox([self.sim_data,self.sim_faults,self.sim_extra],layout=W.Layout(width='100%'))
+        self.real_quality=_group('GNSS / receiver',[
+            _data_row('Min. elevation (deg)',self.real['minimum_elevation_deg'],'-90 = gate off'),
+            _data_row('Min. SNR (dB-Hz)',self.real['minimum_snr_dbhz'],'0 = gate off'),
+            _data_row('Clock std (m)',self.real['clock_process_std_m'],'Process uncertainty per GNSS interval')])
+        self.real_noise=_group('IMU / motion uncertainty',[
+            _data_row('Position std (m)',self.real['position_process_std_m']),
+            _data_row('Velocity std (m/s)',self.real['velocity_process_std_mps']),
+            _data_row('Accel. bias std (m/s²)',self.real['bias_process_std_mps2']),
+            W.HTML('<div class="kfv-field-hint">Process uncertainty per GNSS interval. Uses recorded AHRS attitude.</div>')])
+        self.real_files=W.VBox([
+            _data_row('GPS - UTC (s)',self.real['gps_minus_utc_s']),
+            W.HTML('<div class="kfv-field-label">Custom data directory</div>'),self.real['data_directory']])
+        self.real['data_directory'].layout=W.Layout(width='100%')
+        self.real_extra=_sections(children=[self.real_files],titles=['Time & custom data'])
+        self.real_panel=W.VBox([self.real_quality,self.real_noise,self.real_extra],layout=W.Layout(width='100%'))
         self.data_note=W.HTML()
+        self.data_card=_card([_heading('C','Shared data','One dataset and prior for both methods.'),
+            self.source,self.dataset_row,self.sim_panel,self.real_panel,self.data_note],'32%').add_class('kfv-card-data')
+        self.data_card.layout.flex='1 1 300px'
         self.run=W.Button(description='Run comparison',icon='play',button_style='primary',layout=W.Layout(width='180px'))
         self.status=W.HTML('<span class="kfv-note">Ready. Run a comparison to show the results.</span>')
         self.progress=W.IntProgress(value=0,min=0,max=100,description='Progress',bar_style='info',
@@ -236,10 +273,8 @@ class ComparisonUI:
         self.stop.on_click(self._stop)
         self.connection=W.HTML(f'<div class="kfv-note">UI {UI_REVISION}</div>')
         self.widget=W.VBox([W.HTML(STYLE),_heading('⇄',module,'Choose data, configure the two methods, then run.'),
-            _card([_heading('◉','Data source'),self.source,self.dataset_row,self.data_note]),
-            W.HBox([self.left.widget,self.right.widget],layout=W.Layout(justify_content='space-between',flex_flow='row wrap')),
-            _heading('⚙','Shared data settings','Optional. Defaults are ready to run.'),
-            self.sim_panel,self.real_panel,
+            W.HBox([self.left.widget,self.right.widget,self.data_card],layout=W.Layout(
+                width='100%',grid_gap='12px',align_items='flex-start',flex_flow='row wrap')),
             W.HBox([self.run,self.stop,self.use_cache],layout=W.Layout(align_items='center',margin='14px 0 4px')),
             self.connection,self.status,self.progress,
             W.HTML('<div class="kfv-note">Stop ends after the current operation. Results appear when both methods finish.</div>'),
@@ -264,8 +299,8 @@ class ComparisonUI:
             self.sim_panel.layout.display='none' if real else ''
             self.real_panel.layout.display='' if real else 'none'
             self.dataset_row.layout.display='' if real else 'none'
-            self.data_note.value=('<div class="kfv-note">10-state pseudorange / IMU comparison with recorded AHRS attitude. Truth is used only for evaluation.</div>' if real else
-                                  '<div class="kfv-note">Circular-motion range simulation. Both methods receive the same measurements and initial prior.</div>')
+            self.data_note.value=('<div class="kfv-note">Recorded data. Truth is used only for evaluation.</div>' if real else
+                                  '<div class="kfv-note">100 m circular path. Six range emitters.</div>')
             self.left.apply_rules(self.source.value)
             self.right.apply_rules(self.source.value)
             if self.match_filter_settings:

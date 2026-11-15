@@ -61,23 +61,23 @@ For an equivalence check, choose Re-FGO in KFV vs FGO. To study iteration, compa
 
 ## Shared data settings
 
-Only controls for the selected source are shown. Both methods use the same observations and initial conditions. Optional settings are grouped in collapsible panels.
+The three outlined cards are **A: Left method**, **B: Right method**, and **C: Shared data**. The teal data card switches between Simulation and Real GNSS/INS. Primary parameters stay visible in compact number fields; only additional settings are collapsed. Both methods use the same observations and initial conditions.
 
 | Simulation panel | Controls |
 |---|---|
-| Geometry and nominal noise | Number of states including the prior, range-emitter radius (m), nominal range standard deviation (m) |
-| Outlier simulation | Probability, mean (m) and standard deviation (m) of the second Gaussian component |
-| Initialization and repeatability | Shared X/Y initial position offsets (m), random seed |
+| Nonlinearity and nominal noise | Range-emitter radius (m), nominal range standard deviation (m) |
+| Non-Gaussian noise | Probability, bias/mean (m) and standard deviation (m) of the second Gaussian component |
+| Initial guess and repeatability (expandable) | Number of states including the prior, shared X/Y initial position offsets (m), random seed |
 
-The emitter radius controls measurement geometry, not satellite altitude. The nominal range standard deviation is squared to obtain variance. Outlier probability zero generates nominal noise only. Keep data settings and seed unchanged for a controlled comparison.
+The emitter radius controls measurement geometry, not satellite altitude. With the 100 m path fixed, bringing the emitters closer increases local range curvature near the path. It is a geometry-based nonlinearity control, not a universal scalar measure of nonlinearity. The 105 m minimum avoids coincident emitters and trajectory points. The nominal range standard deviation is squared to obtain variance. Outlier probability zero generates nominal noise only. Keep data settings and seed unchanged for a controlled comparison.
 
 For **Real GNSS/INS**, choose bundled UrbanNav **medium**, **deep** or **harsh**. The recording loads automatically.
 
 | Real-data panel | Controls |
 |---|---|
-| Process uncertainty | Position, velocity, accelerometer-bias and receiver-clock standard deviations per GNSS interval; defaults 0.30 m, 0.15 m/s, 0.01 m/s² and 100 m |
-| GNSS quality gates | Optional elevation cutoff (−90° disables it) and SNR cutoff (0 disables it) |
-| Custom data and time | Optional directory and GPS–UTC offset; bundled 2021 data uses 18 s |
+| GNSS / receiver | Optional elevation cutoff (-90 degrees disables it), SNR cutoff (0 disables it), and receiver-clock process standard deviation (default 100 m) |
+| IMU / motion uncertainty | Position, velocity and accelerometer-bias process standard deviations per GNSS interval; defaults 0.30 m, 0.15 m/s and 0.01 m/s² |
+| Time and custom data (expandable) | Optional directory and GPS-UTC offset; bundled 2021 data uses 18 s |
 
 Process standard deviations are squared to form diagonal Q. They are discrete uncertainties, not continuous IMU noise densities. A custom directory needs `f9p_navi.obs`, `brdm.rnx` and `xsens_imu.csv` or the supplied lossless `xsens_imu.npz`. Optional `gt.txt` enables reference-error plots. For a Drive data directory, mount Drive separately before selecting its path.
 
