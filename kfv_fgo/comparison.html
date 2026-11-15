@@ -10,7 +10,7 @@
 <div class="tabs"><button data-view="trajectory" class="active">Trajectory</button><button data-view="error">Position error</button><button data-view="residual">Residual norm</button><button data-view="iterations">Iteration path</button><button data-view="difference" class="real-only">Solver difference</button><button data-view="satellites" class="real-only">Used satellites</button><button data-view="runtime" class="article-only">Runtime boxplot</button><button class="download">Save data</button><button class="export">Save SVG</button></div>
 <div class="controls group-controls" style="display:none"><label>Comparison <select class="group" aria-label="Comparison group"></select></label></div>
 <div class="controls scene-controls" style="display:none"><label><input type="checkbox" class="scene-zooms"> Scene 1 / 2 enlargements</label></div>
-<div class="controls epoch-controls"><button class="play">Play</button><label>Epoch <input class="epoch" type="number" min="1" value="15" style="width:65px"></label><input class="frame" aria-label="Epoch slider" type="range" min="1" value="15" style="flex:1;min-width:180px"><label class="detail-label">Detail <input class="span" aria-label="Detail epochs" type="number" min="2" value="8" style="width:58px"> epochs</label></div>
+<div class="controls epoch-controls"><button class="play" aria-label="Play comparison">▶ Play</button><label>Speed <select class="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select></label><span class="play-time" aria-live="off"></span><label>Epoch <input class="epoch" type="number" min="1" value="15" style="width:65px"></label><input class="frame" aria-label="Epoch slider" type="range" min="1" value="15" style="flex:1;min-width:180px"><label class="detail-label">Detail <input class="span" aria-label="Detail epochs" type="number" min="2" value="8" style="width:58px"> epochs</label></div>
 <div class="controls error-controls" style="display:none"><label>Error <select class="error-component"><option value="horizontal">Horizontal</option><option value="up">Up (signed)</option><option value="3d">3D</option></select></label></div>
 <div class="controls residual-controls" style="display:none"><label>Range view <select class="residual"><option value="postfit">Post-fit norm [m]</option><option value="prefit">Innovation norm [m]</option><option value="truth">Truth measurement-error norm [m]</option></select></label><label class="residual-scale-label">Axis <select class="residual-scale"><option value="linear">Linear</option><option value="log">Logarithmic</option></select></label></div>
 <div class="controls iteration-controls" style="display:none"><label>Iteration view <select class="objective"><option value="measurement_residual_norm_m">Range residual norm [m]</option><option value="objective">Full objective</option></select></label><span>The contour uses the unweighted range residual norm (m).</span></div>
@@ -26,7 +26,7 @@ let data=fullData,styles;
 const colors=['#1857d3','#e3272b','#16834b'];
 const makeStyles=()=>data.names.map((n,i)=>({color:colors[i%3],marker:i===2?'t':data.kinds[i]==='fgo'?'o':'x',dash:i===1?'7 5':i===2?'3 2':'none'}));
 const time=data.time||Array.from({length:data.frames},(_,k)=>k*data.dt);
-const gt={color:'#111',marker:'s'};let view='trajectory',timer=null;
+const gt={color:'#111',marker:'s'};let view='trajectory',timer=null,lastFrame=0,pendingRender=null;
 let latestSvg=''; epoch.max=slider.max=data.frames-1;epoch.value=slider.value=Math.min(15,data.frames-1);
 if(data.real&&!data.has_truth){$('[data-view=error]').disabled=true;}
 if(!data.real)root.querySelectorAll('.real-only').forEach(x=>x.remove());
@@ -110,6 +110,7 @@ function contour(p,k){
 }
 function render(){
  const k=Math.max(1,Math.min(data.frames-1,Number(epoch.value)||1));epoch.value=slider.value=k;
+ $('.play-time').textContent=`${fmt(time[k])} s / ${fmt(time[data.frames-1])} s`;
  const length=Math.max(2,Number(span.value)||15),start=Math.max(1,k-length+1),end=k;
  const indices=Array.from({length:end-start+1},(_,i)=>start+i),all=Array.from({length:data.frames-1},(_,i)=>i+1);
  const scenes=!!fullData.regions?.length&&$('.scene-zooms').checked&&['trajectory','error'].includes(view);
@@ -205,8 +206,29 @@ function render(){
  $('.figure').innerHTML=latestSvg;$('.caption').textContent=caption;
 }
 for(const button of root.querySelectorAll('[data-view]'))button.addEventListener('click',()=>{view=button.dataset.view;$('.stats').style.display=(fullData.groups?.length&&['runtime','residual'].includes(view))?'none':'flex';$('.epoch-controls').style.display=(view==='runtime'||(view==='residual'&&fullData.groups?.length))?'none':'flex';$('.group-controls').style.display=fullData.groups?.length&&!['runtime','residual'].includes(view)?'flex':'none';root.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b===button));$('.error-controls').style.display=view==='error'&&data.real?'flex':'none';$('.detail-label').style.display=view==='iterations'?'none':'';$('.residual-controls').style.display=view==='residual'?'flex':'none';$('.iteration-controls').style.display=view==='iterations'?'flex':'none';if(view==='iterations')epoch.value=1;render();});
-slider.addEventListener('input',()=>{epoch.value=slider.value;render();});for(const c of [epoch,span,$('.residual'),$('.objective'),$('.error-component'),$('.residual-scale')])c.addEventListener('input',render);
-$('.play').addEventListener('click',()=>{if(timer){clearInterval(timer);timer=null;$('.play').textContent='Play';return;}if(Number(epoch.value)>=data.frames-1)epoch.value=1;$('.play').textContent='Pause';timer=setInterval(()=>{if(!root.isConnected||Number(epoch.value)>=data.frames-1){clearInterval(timer);timer=null;$('.play').textContent='Play';return;}epoch.value=Number(epoch.value)+1;render();},__INTERVAL__);});
+function scheduleRender(){if(pendingRender===null)pendingRender=requestAnimationFrame(()=>{pendingRender=null;render();});}
+function pause(){if(timer!==null)cancelAnimationFrame(timer);timer=null;$('.play').textContent='▶ Play';$('.play').setAttribute('aria-label','Play comparison');}
+function advance(now){
+ if(!root.isConnected){pause();return;}
+ const interval=__INTERVAL__/Number($('.speed').value);
+ if(now-lastFrame>=interval){
+  lastFrame=now;
+  if(Number(epoch.value)>=data.frames-1){pause();return;}
+  epoch.value=Number(epoch.value)+1;render();
+  if(Number(epoch.value)>=data.frames-1){pause();return;}
+ }
+ timer=requestAnimationFrame(advance);
+}
+slider.addEventListener('input',()=>{pause();epoch.value=slider.value;scheduleRender();});
+epoch.addEventListener('input',()=>{pause();scheduleRender();});
+for(const c of [span,$('.residual'),$('.objective'),$('.error-component'),$('.residual-scale')])c.addEventListener('input',scheduleRender);
+$('.play').addEventListener('click',()=>{
+ if(timer!==null){pause();return;}
+ if(Number(epoch.value)>=data.frames-1){epoch.value=1;render();}
+ $('.play').textContent='❚❚ Pause';$('.play').setAttribute('aria-label','Pause comparison');
+ lastFrame=performance.now();timer=requestAnimationFrame(advance);
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});
 $('.download').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(fullData)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='kfv-fgo-viewer-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 $('.export').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([latestSvg],{type:'image/svg+xml'})),a=document.createElement('a');a.href=url;a.download=`kfv-fgo-${view}-epoch-${epoch.value}.svg`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
 render();

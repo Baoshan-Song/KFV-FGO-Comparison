@@ -106,14 +106,18 @@ class LiveComparison:
         self.follow=W.Checkbox(value=True,description='Follow latest',indent=False)
         self.timeline=W.IntSlider(value=0,min=0,max=1,description='Time',continuous_update=True,
                                    readout=False,layout=W.Layout(width='70%'))
+        self.play=W.Play(value=0,min=0,max=1,interval=120,disabled=True,
+                         repeat=False,description='Play',show_repeat=False)
+        self._play_link=W.jslink((self.play,'value'),(self.timeline,'value'))
         self.detail=W.IntSlider(value=30,min=5,max=120,description='Detail (s)',continuous_update=False,
                                 layout=W.Layout(width='280px'))
         self.clock=W.HTML();self.figure=W.HTML();self.download=W.HTML()
         self.progress=W.IntProgress(min=0,max=2*(self.count-1),description='Solved',layout=W.Layout(width='95%'))
         self.note=W.HTML()
         self.widget=W.VBox([self.progress,self.view,W.HBox([self.component,self.residual,self.follow]),
-            W.HBox([self.timeline,self.clock]),self.detail,self.note,self.figure,self.download])
+            W.HBox([self.play,self.timeline,self.clock]),self.detail,self.note,self.figure,self.download])
         self.timeline.observe(self._seek,names='value')
+        self.play.observe(self._playing,names='playing')
         for widget in (self.view,self.component,self.residual,self.detail,self.follow):widget.observe(self._control,names='value')
         self.render()
 
@@ -121,6 +125,12 @@ class LiveComparison:
         if self._internal:return
         self.follow.value=False
         self.render()
+
+    def _playing(self,change):
+        if change['new']:
+            self.follow.value=False
+            if self.timeline.value>=min(self.ready):
+                self.timeline.value=self.play.value=1
 
     def _control(self,_):
         if self._internal:return
@@ -156,6 +166,9 @@ class LiveComparison:
                 self.progress.value=sum(self.ready)
                 self.timeline.max=max(1,available)
                 self.timeline.min=1 if available else 0
+                self.play.max=max(1,available)
+                self.play.min=1 if available else 0
+                self.play.disabled=available<2
                 if self.follow.value:self.timeline.value=available
                 k=min(self.timeline.value,available)
                 self.clock.value=f'<b>{self.time[k]:.1f} s</b> · epoch {k}'

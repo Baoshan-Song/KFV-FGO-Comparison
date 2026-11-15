@@ -33,13 +33,14 @@ class ColabModulesTests(unittest.TestCase):
         self.assertNotEqual(ui.real_panel.layout.display,'none')
         self.assertEqual(ui.right.numerical_row.layout.display,'none')
         ui.right.method.value='SW-FGO'
-        self.assertFalse(ui.match.value)
-        self.assertTrue(ui.match.disabled)
+        self.assertFalse(ui.match_filter_settings)
         self.assertFalse(ui.right.window.disabled)
         self.assertFalse(ui.right.iterations.disabled)
         ui.right.method.value='Re-FGO'
         self.assertEqual(ui.right.window.value,1)
         self.assertTrue(ui.right.window.disabled)
+        self.assertTrue(ui.match_filter_settings)
+        self.assertTrue(ui.right.iterations.disabled and ui.right.kernel.disabled)
 
     def test_kernel_scales_are_remembered_and_matched(self):
         ui=ComparisonUI('KFV vs FGO')
@@ -53,6 +54,36 @@ class ColabModulesTests(unittest.TestCase):
         ui.left.kernel.value='tukey'
         self.assertEqual(ui.left.delta.value,6.)
         self.assertEqual(ui.right.delta.value,6.)
+
+    def test_recursive_graph_always_tracks_the_effective_filter(self):
+        ui=ComparisonUI('KFV vs FGO')
+        self.assertFalse(hasattr(ui,'match'))
+        for mode in ('EKF','rEKF','iEKF','riEKF'):
+            ui.left.method.value=mode
+            if not ui.left.iterations.disabled:ui.left.iterations.value=7
+            if not ui.left.kernel.disabled:ui.left.kernel.value='cauchy'
+            for field in ('iterations','kernel','delta','continuation'):
+                left,right=getattr(ui.left,field),getattr(ui.right,field)
+                self.assertEqual(left.value,right.value,(mode,field))
+                self.assertTrue(right.disabled,(mode,field))
+            self.assertTrue(ui.right.numerical.disabled)
+            self.assertEqual(ui.right.window.value,1)
+            ui.right.method.value='SW-FGO'
+            self.assertFalse(ui.right.iterations.disabled)
+            ui.right.method.value='Re-FGO'
+            self.assertEqual(ui.right.iterations.value,ui.left.iterations.value)
+            self.assertTrue(ui.right.iterations.disabled)
+
+    def test_graph_module_only_offers_independent_sliding_windows(self):
+        ui=ComparisonUI('FGO vs FGO')
+        self.assertFalse(ui.match_filter_settings)
+        self.assertEqual((ui.left.window.value,ui.right.window.value),(5,20))
+        for card in (ui.left,ui.right):
+            self.assertEqual(tuple(card.method.options),('SW-FGO',))
+            self.assertTrue(card.method.disabled)
+            self.assertFalse(card.window.disabled)
+        ui.left.window.value=10
+        self.assertEqual(ui.right.window.value,20)
 
     def test_all_modules_share_inputs_and_noise_in_both_sources(self):
         for module,methods in [('KFV vs KFV',('EKF','riEKF')),

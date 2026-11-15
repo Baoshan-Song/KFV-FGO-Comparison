@@ -15,7 +15,7 @@ Both data sources are available inside every module. There is no separate real-d
 
 ### Updating an already open Colab session
 
-After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.2 · Colab connected** before enabling Run.
+After opening an updated notebook, run **Setup** again, then run the comparison cell again. An existing panel keeps its old Python callbacks until it is recreated. Setup prints the loaded `main` commit and the UI revision; the current panel shows **UI 2026-11-15.3 · Colab connected** before enabling Run.
 
 If an old panel is frozen and even Stop does not respond, use **Runtime → Restart session**, then run Setup and the comparison cell. A page refresh alone does not reload the Python code. The new panel reports startup failures directly and acknowledges Stop immediately. Its live connection also reports a disconnected or unresponsive runtime instead of silently waiting.
 
@@ -35,7 +35,7 @@ To regenerate the bundled results locally, run `python scripts/precompute_colab.
 |---|---|
 | KFV vs KFV | EKF, iEKF, rEKF and riEKF, independently configured |
 | KFV vs FGO | Any filter variant against Re-FGO or SW-FGO |
-| FGO vs FGO | Re-FGO or SW-FGO on either side, with independent settings |
+| FGO vs FGO | Two independent SW-FGO configurations, initially 5 and 20 states |
 
 Re-FGO is an independent graph solver with two QR marginalizations. It never substitutes a precomputed filter estimate as a factor. Setting an ordinary sliding window to one does not implement the same procedure.
 
@@ -55,9 +55,9 @@ Each parameter has an icon, a short explanation and a selection or slider. Inapp
 - **Robust scale** is dimensionless, not metres. Smaller values downweight more measurements.
 - **Window** sets the states retained after an SW-FGO solve. Re-FGO fixes it at one.
 - **Numerical Jacobian** is simulation-only. Off uses analytic derivatives; on uses central finite differences.
-- **Match the filter settings**, in KFV vs FGO, copies the filter's effective prior, noise, iteration and loss settings to Re-FGO. The linked controls are disabled. Selecting SW-FGO turns the link off. Disable the link to tune Re-FGO independently.
+- **Re-FGO automatically follows the left filter** in KFV vs FGO. Its prior, noise, iterations and robust loss use the effective KFV configuration. The linked settings are greyed out, and no matching switch is needed. Selecting SW-FGO opens independent graph controls. The bottom FGO vs FGO module contains only SW-FGO, for comparing windows and robust settings.
 
-For an equivalence check, use KFV vs FGO with the link enabled. To study iteration, compare EKF with iEKF in KFV vs KFV. To study retained history, compare Re-FGO with SW-FGO in FGO vs FGO while keeping their noise and loss settings matched.
+For an equivalence check, choose Re-FGO in KFV vs FGO. To study iteration, compare EKF with iEKF in KFV vs KFV. To study retained history, compare different SW-FGO windows in FGO vs FGO while keeping noise and loss settings the same.
 
 ## Shared data settings
 
@@ -89,12 +89,13 @@ Truth is used only for evaluation, interpolated at overlapping UTC timestamps wi
 
 Both simulation and real-data comparisons update while solving. The worker alternates the two methods at each epoch, and the display refreshes up to about three times per second rather than sending a whole figure for every observation. Data loading is reported before the first result appears.
 
+- **Play / Pause** is available in the live preview. On completion, or when loading saved results, the original paper-style viewer opens automatically with the full curve and local enlargement. Its replay and slider run in the browser without a Python request for each frame. Choose **0.5×, 1×, 2× or 4×** playback speed. Scrubbing pauses playback, and Play at the end starts again.
 - **Follow latest** tracks the newest completed pair of updates.
 - Drag **Time** backwards or forwards to examine completed epochs. This turns automatic following off, so incoming results do not move your selection.
 - The time label gives elapsed seconds and the epoch index, including irregular real-data intervals. **Detail (s)** controls the local time span.
 - Live views show trajectory, position error and post-fit / innovation residual norms. Grey bands identify recorded GNSS gaps. Raw observation residuals are not positioning errors.
 - **Stop** is cooperative and takes effect between epoch updates. Completed curves stay available, but a stopped partial run is not labeled a complete experiment.
-- After completion, click **Open full diagnostics** for iteration diagnostics, replay and the existing exports. Real-data scene enlargements are optional and off by default, keeping the timeline visible.
+- The finished viewer includes iteration diagnostics and exports directly. Real-data scene enlargements are optional and off by default, keeping the timeline visible.
 
 Live curves and batch results use the same solver generators. Solver timings exclude the time spent yielding to the other method and the live viewer. The total time you wait also includes visualization and data loading, so it should not be used as a controlled solver benchmark.
 

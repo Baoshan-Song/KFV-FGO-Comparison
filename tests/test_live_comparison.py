@@ -28,6 +28,8 @@ class LiveComparisonTests(unittest.TestCase):
         self.assertEqual(live.timeline.value,3)
         self.assertFalse(live.follow.value)
         self.assertEqual(live.timeline.max,29)
+        self.assertEqual(live.play.max,29)
+        self.assertFalse(live.play.disabled)
         batch=run_pair(data,left,right)
         for a,b in zip(streamed['estimators'],batch['estimators']):
             np.testing.assert_allclose(a['result']['X_online'],b['result']['X_online'],atol=0,rtol=0)
@@ -35,6 +37,17 @@ class LiveComparisonTests(unittest.TestCase):
         self.assertEqual(live.timeline.value,29)
         live.view.value='Residual norm'
         self.assertIn('Post-fit residual norm',live.svg)
+
+    def test_play_restarts_at_first_computed_epoch_and_disables_follow(self):
+        data,left,right=case()
+        live=LiveComparison(data,[left,right])
+        self.assertTrue(live.play.disabled)
+        run_interleaved(data,[left,right],live.receive,Event());live.finish()
+        live.play.playing=True
+        self.assertFalse(live.follow.value)
+        self.assertEqual(live.timeline.value,1)
+        self.assertEqual(live.play.value,1)
+        live.play.playing=False
 
     def test_stop_does_not_compute_remaining_epochs(self):
         data,left,right=case();stop=Event();events=[]

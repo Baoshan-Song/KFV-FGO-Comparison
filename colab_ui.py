@@ -142,17 +142,21 @@ class ComparisonUI:
         self._colab_bridge=None
         self._previous={}
         self._closed=False
+        self._viewer_revision=0
+        self._viewer_html=None
         defaults={'KFV vs KFV':('EKF','riEKF'),'KFV vs FGO':('iEKF','Re-FGO'),
-                  'FGO vs FGO':('Re-FGO','SW-FGO')}
+                  'FGO vs FGO':('SW-FGO','SW-FGO')}
         self.left=MethodCard(MODULES[module][0],'left',defaults[module][0])
         self.right=MethodCard(MODULES[module][1],'right',defaults[module][1])
+        if module=='FGO vs FGO':
+            for card in (self.left,self.right):
+                card.method.options=('SW-FGO',)
+                card.method.disabled=True
+            self.right.window.value=20
         self.source=W.ToggleButtons(options=['Simulation','Real GNSS/INS'],value='Simulation',
                                      icons=['flask','globe'],style={'button_width':'170px'})
         self.dataset=W.Dropdown(options=['medium','deep','harsh'],value='medium')
         self.dataset_row=_row('◉','Recording','Bundled UrbanNav data, loaded automatically',self.dataset)
-        self.match=W.Checkbox(value=module=='KFV vs FGO',description='Match the filter settings',indent=False)
-        self.match_row=_row('🔗','Matched comparison','Copies the effective left settings to Re-FGO. Turn off to tune it independently.',self.match)
-        self.match_row.layout.display='' if module=='KFV vs FGO' else 'none'
         self.sim={
             'num_steps':_slider(100,30,300,10,True), 'anchor_radius':_slider(200,100,1000,25),
             'seed':W.IntText(value=7), 'white_sigma':_log(.1,-3,2),
@@ -198,6 +202,7 @@ class ComparisonUI:
         self.output=W.Output(layout=W.Layout(width='100%'))
         self.live_container=W.VBox()
         self.details=W.Button(description='Open full diagnostics',icon='line-chart',disabled=True,layout=W.Layout(width='210px'))
+        self.details.layout.display='none'
         self.details.on_click(self._show_details)
         self.stop=W.Button(description='Stop',icon='stop',disabled=True,layout=W.Layout(width='90px'))
         self.stop_event=Event()
@@ -207,7 +212,7 @@ class ComparisonUI:
         self.widget=W.VBox([W.HTML(STYLE),_heading('⇄',module,'Choose data, configure the two methods, then run.'),
             _card([_heading('◉','Data source'),self.source,self.dataset_row,self.data_note]),
             W.HBox([self.left.widget,self.right.widget],layout=W.Layout(justify_content='space-between',flex_flow='row wrap')),
-            self.match_row,_heading('⚙','Shared data settings','Optional. Defaults are ready to run.'),
+            _heading('⚙','Shared data settings','Optional. Defaults are ready to run.'),
             self.sim_panel,self.real_panel,
             W.HBox([self.run,self.stop,self.use_cache],layout=W.Layout(align_items='center',margin='14px 0 4px')),
             self.connection,self.status,
@@ -215,11 +220,14 @@ class ComparisonUI:
             self.live_container,self.details,self.output],layout=W.Layout(width='100%')).add_class('kfv-workspace')
         self._syncing=False
         self.source.observe(self._sync,names='value')
-        self.match.observe(self._sync,names='value')
         for card in (self.left,self.right):
             for control in (card.method,card.iterations,card.kernel,card.delta,card.continuation):control.observe(self._sync,names='value')
         self.run.on_click(self._run)
         self._sync()
+
+    @property
+    def match_filter_settings(self):
+        return self.module=='KFV vs FGO' and self.right.method.value=='Re-FGO'
 
     def _sync(self, change=None):
         if self._syncing:return
@@ -234,15 +242,12 @@ class ComparisonUI:
                                   '<div class="kfv-note">Circular-motion range simulation. Both methods receive the same measurements and initial prior.</div>')
             self.left.apply_rules(self.source.value)
             self.right.apply_rules(self.source.value)
-            allowed=self.module=='KFV vs FGO' and self.right.method.value=='Re-FGO'
-            self.match.disabled=not allowed
-            if not allowed:self.match.value=False
-            if self.match.value:
+            if self.match_filter_settings:
                 for key in ('iterations','kernel','delta','continuation'):
                     control=getattr(self.right,key);control.value=getattr(self.left,key).value;control.disabled=True
                 self.right.numerical.disabled=True
                 self.right.numerical.value=False
-                self.right.note.value='<div class="kfv-note">Linked to the effective filter settings on the left. Re-FGO is solved independently.</div>'
+                self.right.note.value='<div class="kfv-note">Automatically follows the KFV settings on the left. Re-FGO is solved independently.</div>'
             else:
                 self.right.numerical.disabled=False
                 self.right.continuation.disabled=False
@@ -250,10 +255,14 @@ class ComparisonUI:
 
     def _show_details(self, _):
         if not hasattr(self,'experiment') and not hasattr(self,'cached_payload'):return
+        replay=(animate_payload(self.cached_payload,interval=80) if hasattr(self,'cached_payload')
+                else animate_pair(self.experiment,interval=80))
+        self._viewer_html=replay.data
+        self._viewer_revision+=1
+        if self._live is not None:self._live.play.playing=False
+        self.live_container.layout.display='none'
         self.output.outputs=()
-        self.output.append_display_data(
-            animate_payload(self.cached_payload,interval=80) if hasattr(self,'cached_payload')
-            else animate_pair(self.experiment,interval=80))
+        if self._colab_bridge is None:self.output.append_display_data(replay)
 
     def _stop(self, _=None):
         if not self._busy:return
@@ -269,6 +278,7 @@ class ComparisonUI:
             loop=None if self._colab_bridge else asyncio.get_running_loop()
             self._busy=True
             self._finished=False
+            if getattr(self,'_live',None) is not None:self._live.play.playing=False
             self._live=None
             self._started=monotonic()
             self._stage='Starting worker…'
@@ -279,14 +289,17 @@ class ComparisonUI:
             # Direct state updates avoid output capture / clear_output messages
             # tied to a completed cell or widget callback.
             self.output.outputs=()
+            self._viewer_html=None
+            self._viewer_revision+=1
             self.live_container.children=[]
+            self.live_container.layout.display=''
             for field in ('experiment','cached_payload'):
                 if hasattr(self,field):delattr(self,field)
             args=(self.module,self.source.value,self.left.values(),self.right.values())
             options=dict(simulation={k:v.value for k,v in self.sim.items()},
-                         real={k:v.value for k,v in self.real.items()},match_filter_settings=self.match.value)
+                         real={k:v.value for k,v in self.real.items()},match_filter_settings=self.match_filter_settings)
             reuse=self.use_cache.value
-            controls=[self.source,self.dataset,self.match,self.use_cache,*self.sim.values(),*self.real.values()]
+            controls=[self.source,self.dataset,self.use_cache,*self.sim.values(),*self.real.values()]
             for card in (self.left,self.right):
                 controls += [card.method,card.iterations,card.kernel,card.delta,card.window,card.numerical,card.continuation]
             self._previous={id(c):(c,c.disabled) for c in controls}
@@ -360,10 +373,12 @@ class ComparisonUI:
                     self._live=LiveComparison.from_payload(value)
                     self.live_container.children=[self._live.widget]
                     self.details.disabled=False
+                    self._show_details(None)
                     self._stage=f'Loaded saved results · {value["frames"]-1} updates · stored solver timings'
                 elif kind=='complete':
                     self.experiment=value;self._live.finish();self.details.disabled=False
-                    self._stage='Complete. Scrub the timeline or open full diagnostics'
+                    self._show_details(None)
+                    self._stage='Complete. Play or scrub the timeline below'
                 elif kind in ('stopped','error'):
                     if self._live is not None:self._live.finish(stopped=True)
                     self._stage=value

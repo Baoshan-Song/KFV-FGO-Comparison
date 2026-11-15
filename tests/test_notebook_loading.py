@@ -56,6 +56,11 @@ class ColabRequestTests(unittest.TestCase):
             self.assertIn('Complete',ui.status.value)
             self.assertFalse(ui.details.disabled)
             self.assertFalse(hasattr(ui,'ui_task'))
+            state=panel.poll()
+            self.assertIn('class="play"',state['viewer']['html'])
+            self.assertIn('requestAnimationFrame',state['viewer']['html'])
+            self.assertEqual(ui.live_container.layout.display,'none')
+            self.assertNotIn('viewer',panel.poll(viewer_revision=state['viewer']['revision']))
 
     def test_stop_is_acknowledged_then_can_run_again(self):
         ui,panel=self.panel()
@@ -79,6 +84,14 @@ class ColabRequestTests(unittest.TestCase):
         self.assertIn('Loaded saved results',ui.status.value)
         self.assertTrue(all(call.kwargs.get('load_observations') is False for call in prepare.call_args_list))
         self.assertEqual(ui._live.timeline.max,656)
+        self.assertIn('class="play"',ui._viewer_html)
+
+    def test_both_sliding_window_defaults_have_saved_results(self):
+        ui,panel=self.panel('FGO vs FGO')
+        ui.source.value='Real GNSS/INS'
+        ui.run.click();self.finish(ui,panel)
+        self.assertIn('Loaded saved results',ui.status.value)
+        self.assertEqual(ui.cached_payload['names'],['SW-FGO (W=5)','SW-FGO (W=20)'])
 
     def test_startup_failure_visible_and_retry_enabled(self):
         ui,panel=self.panel()

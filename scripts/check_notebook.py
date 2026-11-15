@@ -22,7 +22,7 @@ for i,cell in enumerate(nb.cells[1:],1):
     with patch('IPython.display.display'):
         exec(compile(cell.source,f'colab_cell_{i}','exec'),ns)
     print('PASS widget module',i)
-choices=[('EKF','riEKF'),('iEKF','Re-FGO'),('Re-FGO','SW-FGO')]
+choices=[('EKF','riEKF'),('iEKF','Re-FGO'),('SW-FGO','SW-FGO')]
 folder=Path('artifacts/colab-unified-smoke');folder.mkdir(parents=True,exist_ok=True)
 for module,names in zip(MODULES,choices):
     for source in ['Simulation','Real GNSS/INS']:

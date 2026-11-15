@@ -25,7 +25,7 @@ def presets(dataset):
             elif kernel:
                 ui.left.method.value='riEKF';ui.left.kernel.value=kernel
             _,left,right=prepare_comparison(module,'Real GNSS/INS',ui.left.values(),ui.right.values(),
-                real=dict(dataset=dataset),match_filter_settings=ui.match.value,load_observations=False)
+                real=dict(dataset=dataset),match_filter_settings=ui.match_filter_settings,load_observations=False)
             for method in (left,right):unique[method_key(method)]=method
     return list(unique.values())
 
