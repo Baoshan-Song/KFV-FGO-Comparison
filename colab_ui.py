@@ -10,6 +10,9 @@ from time import monotonic
 from html import escape
 from pathlib import Path
 from datetime import datetime
+from base64 import b64encode
+from functools import lru_cache
+from importlib.resources import files
 from experiment_common import animate_payload, comparison_payload
 from notebook_transport import ColabPanel, colab_output, encode_viewer, UI_REVISION
 
@@ -18,6 +21,14 @@ STYLE = '''<style>
 .kfv-workspace {font-family:Arial,sans-serif;max-width:1160px;padding:12px;
 background:#f4f7fb;border:1px solid #dce5ef;border-radius:14px;color:#223449}
 .kfv-workspace * {box-sizing:border-box}
+.kfv-header {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.kfv-header-text {flex:1 1 240px}
+.kfv-header .kfv-help {margin-bottom:0}
+.kfv-brand {display:flex;align-items:center;gap:14px;margin-left:auto;padding:3px 12px;background:#fff;border-radius:10px;flex-shrink:0}
+.kfv-brand a {display:flex;align-items:center}
+.kfv-brand img {display:block;object-fit:contain}
+.kfv-brand-ipnl {width:106px;height:auto}
+.kfv-brand-polyu {width:42px;height:42px}
 .kfv-card {background:#fff;border:1px solid #dce5ef;border-radius:12px;padding:12px;margin:6px 0}
 .kfv-card-blue {border-top:4px solid #1857d3}.kfv-card-red {border-top:4px solid #e3272b}
 .kfv-card-data {border:2px solid #169b91;border-top:4px solid #169b91;background:#fcfffe}
@@ -46,6 +57,26 @@ width:23px;text-align:center;padding:3px;margin-right:5px}
 def _heading(icon, title, description=''):
     return W.HTML(f'<div class="kfv-heading"><span class="kfv-icon">{icon}</span>{title}</div>'
                   + (f'<div class="kfv-help">{description}</div>' if description else ''))
+
+
+@lru_cache(maxsize=2)
+def _brand_image(name):
+    """Embed packaged logos so notebook output does not depend on an image host."""
+    data = files('kfv_fgo').joinpath('assets', 'brand', name).read_bytes()
+    return 'data:image/png;base64,' + b64encode(data).decode('ascii')
+
+
+def _workspace_header(module):
+    return W.HTML(
+        '<div class="kfv-header"><div class="kfv-header-text">'
+        f'<div class="kfv-heading"><span class="kfv-icon">⇄</span>{escape(module)}</div>'
+        '<div class="kfv-help">Choose data, configure the two methods, then run.</div></div>'
+        '<div class="kfv-brand" aria-label="IPNL and The Hong Kong Polytechnic University">'
+        '<a href="https://www.polyu.edu.hk/aae/ipn-lab/" target="_blank" rel="noopener noreferrer" title="Intelligent Positioning and Navigation Laboratory">'
+        f'<img class="kfv-brand-ipnl" src="{_brand_image("ipnl.png")}" alt="IPNL"></a>'
+        '<a href="https://www.polyu.edu.hk/" target="_blank" rel="noopener noreferrer" title="The Hong Kong Polytechnic University">'
+        f'<img class="kfv-brand-polyu" src="{_brand_image("polyu.png")}" alt="PolyU"></a>'
+        '</div></div>', layout=W.Layout(width='100%'))
 
 
 def _row(icon, label, help_text, control):
@@ -272,7 +303,7 @@ class ComparisonUI:
         self.use_cache=W.Checkbox(value=True,description='Use saved results',indent=False)
         self.stop.on_click(self._stop)
         self.connection=W.HTML(f'<div class="kfv-note">UI {UI_REVISION}</div>')
-        self.widget=W.VBox([W.HTML(STYLE),_heading('⇄',module,'Choose data, configure the two methods, then run.'),
+        self.widget=W.VBox([W.HTML(STYLE),_workspace_header(module),
             W.HBox([self.left.widget,self.right.widget,self.data_card],layout=W.Layout(
                 width='100%',grid_gap='12px',align_items='flex-start',flex_flow='row wrap')),
             W.HBox([self.run,self.stop,self.use_cache],layout=W.Layout(align_items='center',margin='14px 0 4px')),

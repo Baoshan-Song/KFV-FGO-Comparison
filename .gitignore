@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 *.png
+!kfv_fgo/assets/brand/*.png
 data/circle_cv_gmm_custom.mat
 .DS_Store
 *.egg-info/

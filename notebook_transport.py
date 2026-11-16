@@ -13,7 +13,7 @@ from uuid import uuid4
 
 from IPython.display import HTML, JSON, display
 
-UI_REVISION = '2026-11-15.6'
+UI_REVISION = '2026-11-16.1'
 _PANELS = {}
 
 

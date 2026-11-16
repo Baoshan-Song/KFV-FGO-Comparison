@@ -1,3 +1,9 @@
+<p align="right">
+  <a href="https://www.polyu.edu.hk/aae/ipn-lab/"><img src="kfv_fgo/assets/brand/ipnl.png" alt="IPNL" height="56"></a>
+  &nbsp;&nbsp;
+  <a href="https://www.polyu.edu.hk/"><img src="kfv_fgo/assets/brand/polyu.png" alt="The Hong Kong Polytechnic University" height="44"></a>
+</p>
+
 # KFV–FGO Comparison
 
 **Compare Kalman filter variants and factor graph optimization in your browser. No local installation.**
