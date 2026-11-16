@@ -1,18 +1,12 @@
-<p align="right">
-  <a href="https://www.polyu.edu.hk/aae/ipn-lab/"><img src="kfv_fgo/assets/brand/ipnl.png" alt="IPNL" height="56"></a>
-  &nbsp;&nbsp;
-  <a href="https://www.polyu.edu.hk/"><img src="kfv_fgo/assets/brand/polyu.png" alt="The Hong Kong Polytechnic University" height="44"></a>
-  <br>
-  <strong><a href="https://www.polyu.edu.hk/aae/ipn-lab/us/en/">Intelligent Positioning and Navigation Laboratory (IPNL)</a></strong>
-  <br>
-  <a href="https://www.polyu.edu.hk/">The Hong Kong Polytechnic University (PolyU)</a>
-</p>
+<a href="https://www.polyu.edu.hk/"><img align="right" src="kfv_fgo/assets/brand/polyu.png" alt="PolyU" width="44" height="44"></a><a href="https://www.polyu.edu.hk/aae/ipn-lab/us/en/"><img align="right" src="kfv_fgo/assets/brand/ipnl.png" alt="IPNL" width="96"></a>
 
 # KFV–FGO Comparison
 
-**Compare Kalman filter variants and factor graph optimization in your browser. No local installation.**
+[**Intelligent Positioning and Navigation Laboratory (IPNL)**](https://www.polyu.edu.hk/aae/ipn-lab/us/en/)<br>[The Hong Kong Polytechnic University (PolyU)](https://www.polyu.edu.hk/)
 
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Baoshan-Song/KFV-FGO-Comparison/blob/main/KFV-FGO-Colab.ipynb)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Baoshan-Song/KFV-FGO-Comparison/blob/main/KFV-FGO-Colab.ipynb) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](kfv_fgo/LICENSE)
+
+Compare Kalman filter variants and factor graph optimization in your browser. **No local installation.**
 
 ### Supporting papers
 
@@ -115,7 +109,7 @@ The status shows computation progress. **Stop** takes effect after the current o
 
 [Python / Colab](https://github.com/Baoshan-Song/KFV-FGO-Comparison/tree/main) · [Original MATLAB branch](https://github.com/Baoshan-Song/KFV-FGO-Comparison/tree/matlab) · [Theory and QR conventions](docs/paper_alignment.md)
 
-Thanks to **ZzPolyU** for the GNSS/INS contribution in [PR #5](https://github.com/Baoshan-Song/KFV-FGO-Comparison/pull/5). [Third-party notices](kfv_fgo/THIRD_PARTY_NOTICES.md). GNU GPL v3.
+Thanks to **ZzPolyU** for the GNSS/INS contribution in [PR #5](https://github.com/Baoshan-Song/KFV-FGO-Comparison/pull/5). [Third-party notices](kfv_fgo/THIRD_PARTY_NOTICES.md).
 
 ## Bonus — Real GNSS/INS
 
@@ -144,3 +138,7 @@ The process standard deviations apply **per GNSS interval**, rather than being c
 Custom data needs `f9p_navi.obs`, `brdm.rnx`, and `xsens_imu.csv` or `xsens_imu.npz`. Optional `gt.txt` enables error plots. The **Error** selector adds horizontal, signed Up and 3D views. **Scene 1 / 2 enlargements** adds medium-recording details. Completed real runs save data under `artifacts/colab/`; download it from Colab's Files panel before the session expires.
 
 </details>
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0 (GPLv3)**. See [LICENSE](kfv_fgo/LICENSE) for the full terms.
