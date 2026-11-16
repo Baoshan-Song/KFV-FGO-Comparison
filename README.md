@@ -2,6 +2,10 @@
   <a href="https://www.polyu.edu.hk/aae/ipn-lab/"><img src="kfv_fgo/assets/brand/ipnl.png" alt="IPNL" height="56"></a>
   &nbsp;&nbsp;
   <a href="https://www.polyu.edu.hk/"><img src="kfv_fgo/assets/brand/polyu.png" alt="The Hong Kong Polytechnic University" height="44"></a>
+  <br>
+  <strong><a href="https://www.polyu.edu.hk/aae/ipn-lab/us/en/">Intelligent Positioning and Navigation Laboratory (IPNL)</a></strong>
+  <br>
+  <a href="https://www.polyu.edu.hk/">The Hong Kong Polytechnic University (PolyU)</a>
 </p>
 
 # KFV–FGO Comparison
