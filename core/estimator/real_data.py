@@ -5,7 +5,7 @@ PR #5. Re-FGO uses both canonical QR marginalizations, never a filter call.
 """
 from time import perf_counter
 import numpy as np
-from config.config import validate_config, _config_to_dict
+from config.config import validate_config, validate_fgo_window, _config_to_dict
 from core.filter.miekf import observation_update
 from core.fgo.factor_graph import FactorGraph
 from core.fgo.factor import State, PositionFactor
@@ -101,9 +101,7 @@ def iter_fgo(config, data):
     cfg = config.fgo
     x0, online, predicted, covariances, diagnostics = allocate(config, data, cfg)
     epoch_ms = np.full(data.num_steps, np.nan)
-    recursive = cfg.imitate_kfv
-    if recursive and cfg.window_size != 1:
-        raise ValueError('Re-FGO requires window_size=1')
+    recursive = validate_fgo_window(cfg)
     graph = FactorGraph(cfg)
     state = State(1, 1, x0.copy())
     graph.add_state(state)
@@ -118,6 +116,9 @@ def iter_fgo(config, data):
         graph.add_factor(ImuFactor([old, state], lambda x, i=k: data.propagate(x, i, cfg)))
         if recursive:
             graph.marginalize(k)
+        elif graph.win_size > cfg.window_size:
+            # Match the simulation convention: at most w states in this solve.
+            graph.marginalize(k+1-cfg.window_size)
         graph.add_factor(GnssFactor(state, lambda x, i=k: data.linearize(x, i), cfg))
         graph.estimate()
         online[:, k] = state.value
@@ -131,8 +132,6 @@ def iter_fgo(config, data):
         if recursive:
             graph.mar_measurements(k+1)
             covariances[k] = graph.last_measurement_marginalization['covariance']
-        elif graph.win_size > cfg.window_size:
-            graph.marginalize(k+1-cfg.window_size)
         # Include both QR marginalizations and diagnostic collection.
         epoch_ms[k] = (perf_counter()-epoch_start)*1000
         suspended = perf_counter()

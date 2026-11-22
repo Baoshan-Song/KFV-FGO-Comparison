@@ -205,8 +205,35 @@ class EstimatorIntegrationTests(unittest.TestCase):
             small, _ = run_case(data, 2, policy)
             self.assertEqual(small["removal_calls"], 6)
             self.assertEqual(small["final_active_states"], 2)
-            self.assertEqual(small["max_solve_states"], 3)
+            self.assertEqual(small["max_solve_states"], 2)
         np.testing.assert_array_equal(*trajectories)
+
+    def test_joint_window_contains_current_epoch_and_no_older_overflow(self):
+        from core.estimator import FgoEstimator
+        from config.config import Config
+        from data.circle_eval import generate_data
+        data = generate_data(num_steps=24, gmm_weights=(1., 0.), seed=7)
+        estimate = FactorGraph.estimate
+        for window in (2, 5, 20, 30):
+            observed = []
+            def record(graph):
+                observed.append([s.gid for s in graph.active_states])
+                return estimate(graph)
+            cfg = Config(fgo=FgoConfig(imitate_kfv=False, window_size=window))
+            with self.subTest(window=window), patch.object(FactorGraph, 'estimate', record):
+                result = FgoEstimator(cfg, data).run()
+                for epoch, gids in enumerate(observed, 2):
+                    self.assertEqual(gids, list(range(max(1, epoch-window+1), epoch+1)))
+                    self.assertEqual(result['epoch_diagnostics'][epoch-1]['active_states'], len(gids))
+
+    def test_ordinary_sliding_window_rejects_one_state(self):
+        from core.estimator import FgoEstimator
+        from config.config import Config, sw_fgo_config
+        from data.circle_eval import generate_data
+        self.assertEqual(sw_fgo_config().fgo.window_size, 2)
+        cfg = Config(fgo=FgoConfig(imitate_kfv=False, window_size=1))
+        with self.assertRaisesRegex(ValueError, 'window_size >= 2'):
+            FgoEstimator(cfg, generate_data(num_steps=3)).run()
 
 
 if __name__ == "__main__":

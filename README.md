@@ -67,8 +67,10 @@ Both sides use **SW-FGO**, initially with windows of **5** and **20**. Keep the 
 | **Robust kernel** | `none`, `huber`, `cauchy` or `tukey`, applied to whitened measurement residuals |
 | **Robust scale** | Dimensionless kernel scale; smaller values downweight residuals more strongly |
 | **Gradual scale** | Cauchy/Tukey initialization with a broad scale that approaches the target across iterations; off uses a fixed scale |
-| **Window** | Number of states retained after an SW-FGO solve; larger windows retain more history and cost more computation |
+| **Window w** | Maximum number of epoch states jointly optimized, including the current epoch. Minimum **2**. For example, **w=20** jointly optimizes the current state and 19 previous states once the window is full. |
 | **Numerical Jacobian** | Simulation graph option. Off uses analytic derivatives; on uses central finite differences |
+
+Re-FGO uses a separate two-marginalization recursion, so its window control is hidden. At startup, SW-FGO uses the states available so far until the window is full.
 
 ## C — Simulation settings
 

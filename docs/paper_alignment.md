@@ -32,6 +32,12 @@ V2 describes anchoring at the converged mode. A numerical solver only approaches
 
 The original nonlinear factors are never evaluated again after stage two. The next stage-one prior absorbs the stored affine factor and the new motion factor. Ordinary sliding-window FGO is intentionally different: active nonlinear factors can be relinearized until their states are retired.
 
+## Sliding-window size
+
+For SW-FGO, **w is the number of epoch states jointly optimized, including the current state**, with w >= 2. A full window at epoch k is {x_(k-w+1), ..., x_k}. Before a solve, any older state is marginalized. During startup the solve contains min(w, k+1) states when the initial state is indexed by zero. This convention applies to both simulation and GNSS/INS.
+
+Earlier Python versions through `ed1fb6f` retired overflow after solving, so a setting w could optimize w+1 states. Those result labels used a different convention and are not interchangeable with current w labels. Source-based cache matching invalidates those stored results. Re-FGO is unchanged: it eliminates the previous state before the current measurement update and applies the second QR marginalization afterward. Its internal value 1 does not denote a selectable SW-FGO window.
+
 ## Robust extension and scope
 
 The Gaussian fixed-prior correspondence is the primary verification target. Robust modes use fixed nominal range variance and recompute IRLS weights from each current standardized residual. The prediction remains Gaussian and unchanged within an epoch. Both independent solvers use this same explicitly defined extension; the reported covariance is its local weighted least-squares approximation, not an exact covariance under a non-Gaussian posterior. The previous cumulative-weight MATLAB recurrence is not preserved.

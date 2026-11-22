@@ -211,7 +211,7 @@ def render_plots(output, summary):
         fig.text(.10, .068,
                  ("W=100: identical batch computation in both policies; any gap reflects timing variability."
                   if metric in ("elapsed_ms", "cpu_ms") and summary.get("marginalization_algorithm") else
-                  "Local Schur prior; W=100 keeps all states (batch). Window cleanup follows each solve."
+                  "Local Schur prior; W=100 keeps all states (batch). Window cleanup precedes each solve."
                   if summary.get("marginalization_algorithm") else
                   "Source algorithm retained: initial-state removal and post-solve cleanup; W=100 is not strict batch."),
                  fontsize=9.2, color="#526173")
@@ -364,8 +364,8 @@ def main(argv=None):
                    "marginalize_ms": "Entire marginalization/discard call including any internal assembly, prior creation and retirement; no double counting",
                    "other_ms": "Unassigned loop, output and profiling overhead; wall time minus the three stages",
                    "pie_denominator": "Sum of mean times of the three measured phases; excludes other_ms"},
-               "window_behavior": "Remove oldest state only on overflow; W=100 performs zero removals",
-               "retained_behavior": ["Optimization before window cleanup (may solve W+1 states)",
+               "window_behavior": "At most W states per solve, including the current state; W=100 performs zero removals",
+               "retained_behavior": ["Window cleanup before optimization (at most W jointly optimized states)",
                    "Original motion model, noise covariance, observation schedule and final-trajectory metric"],
                "shared_fixes": ["Position prior uses positive identity Jacobian for A*delta=b, x+=delta",
                    "No forced initial-state removal; both policies release retired factors"],

@@ -180,7 +180,7 @@ def test_real_independent_qr_equivalence(real_data, mode, monkeypatch):
             np.testing.assert_allclose(record["iteration_trace"][-1]["measurement_residual_norm_m"],np.linalg.norm(residual))
 
 
-@pytest.mark.parametrize("window", [1,5])
+@pytest.mark.parametrize("window", [2,5,20])
 def test_real_sliding_graph_preserves_causal_output(real_data,window,monkeypatch):
     cfg=real_config();cfg.kfv.mode="riEKF";cfg=convert_kfv_to_fgo(cfg)
     cfg.fgo.imitate_kfv=False;cfg.fgo.window_size=window
@@ -189,7 +189,7 @@ def test_real_sliding_graph_preserves_causal_output(real_data,window,monkeypatch
     assert result["X_online"].shape==(10,438)
     assert np.isfinite(result["X_online"]).all()
     for i,d in enumerate(result["epoch_diagnostics"][1:],1):
-        assert d["active_states"]<=window+1
+        assert d["active_states"]==min(window, i+1)
         np.testing.assert_array_equal(d["iteration_trace"][-1]["state"],result["X_online"][:,i])
 
 

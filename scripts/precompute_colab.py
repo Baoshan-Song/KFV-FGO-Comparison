@@ -19,7 +19,7 @@ def presets(dataset):
     for module in MODULES:
         ui=ComparisonUI(module)
         choices=([None,'w20'] if module=='FGO vs FGO' else
-                 [None,'cauchy','tukey'] if module=='KFV vs FGO' else [None])
+                 [None,'huber','cauchy','tukey'] if module=='KFV vs FGO' else [None])
         for kernel in choices:
             if kernel=='w20':ui.right.window.value=20
             elif kernel:

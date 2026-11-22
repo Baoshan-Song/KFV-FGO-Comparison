@@ -35,12 +35,18 @@ class ColabModulesTests(unittest.TestCase):
         ui.right.method.value='SW-FGO'
         self.assertFalse(ui.match_filter_settings)
         self.assertFalse(ui.right.window.disabled)
+        self.assertEqual(ui.right.window.min, 2)
+        self.assertNotEqual(ui.right.window_row.layout.display, 'none')
+        ui.right.window.value=2
         self.assertFalse(ui.right.iterations.disabled)
         ui.right.method.value='Re-FGO'
         self.assertEqual(ui.right.window.value,1)
         self.assertTrue(ui.right.window.disabled)
+        self.assertEqual(ui.right.window_row.layout.display, 'none')
         self.assertTrue(ui.match_filter_settings)
         self.assertTrue(ui.right.iterations.disabled and ui.right.kernel.disabled)
+        ui.right.method.value='SW-FGO'
+        self.assertEqual((ui.right.window.min, ui.right.window.value), (2, 2))
 
     def test_kernel_scales_are_remembered_and_matched(self):
         ui=ComparisonUI('KFV vs FGO')
@@ -82,8 +88,16 @@ class ColabModulesTests(unittest.TestCase):
             self.assertEqual(tuple(card.method.options),('SW-FGO',))
             self.assertTrue(card.method.disabled)
             self.assertFalse(card.window.disabled)
+            self.assertEqual(card.window.min, 2)
         ui.left.window.value=10
         self.assertEqual(ui.right.window.value,20)
+
+    def test_sw_fgo_window_one_is_rejected_in_both_sources(self):
+        for source in ('Simulation', 'Real GNSS/INS'):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, 'window >= 2'):
+                prepare_comparison('FGO vs FGO', source,
+                    dict(method='SW-FGO',window=1),dict(method='SW-FGO',window=2),
+                    load_observations=False)
 
     def test_all_modules_share_inputs_and_noise_in_both_sources(self):
         for module,methods in [('KFV vs KFV',('EKF','riEKF')),

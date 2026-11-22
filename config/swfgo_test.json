@@ -69,7 +69,7 @@
     "thres_iteration": 1e-06,
     "robust_kernel": "none",
     "robust_delta": 2.0,
-    "window_size": 1,
+    "window_size": 2,
     "imitate_KFV": false,
     "autoDiff": false
   }

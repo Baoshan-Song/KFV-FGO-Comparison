@@ -3,7 +3,7 @@ import numpy as np
 from .Estimator import Estimator
 from ..fgo.factor_graph import FactorGraph
 from ..fgo.factor import State, PositionFactor, RangeFactor, PropagateFactor
-from config.config import motion
+from config.config import motion, validate_fgo_window
 from .stage_timing import StageTiming
 
 class FgoEstimator(Estimator):
@@ -23,9 +23,7 @@ class FgoEstimator(Estimator):
         emitters = self.data["emitter_positions"]
         range_meas = self.data["toa_measurements"]
 
-        is_imitate_kfv = getattr(cfg, "imitate_kfv", False) or getattr(cfg, "imitate_KFV", False)
-        if is_imitate_kfv and cfg.window_size != 1:
-            raise ValueError("Re-FGO requires window_size=1")
+        is_imitate_kfv = validate_fgo_window(cfg)
 
         # 1. Prior Factor
         with timing.measure("add_state_factor_ms", 1):
@@ -73,6 +71,10 @@ class FgoEstimator(Estimator):
                 # i-1
                 with timing.measure("marginalize_ms", i):
                     graph.marginalize(i - 1)
+            elif graph.win_size > cfg.window_size:
+                # Remove overflow before solving: w includes the incoming state.
+                with timing.measure("marginalize_ms", i):
+                    graph.marginalize(i - cfg.window_size)
 
             # -------------------------------------------------------------
             # C. add all Range factors
@@ -98,6 +100,7 @@ class FgoEstimator(Estimator):
                 online[:, i-1] = new_state.value
                 diagnostics[i-1] = dict(iteration_trace=graph.iteration_trace,
                                         converged=graph.converged,
+                                        active_states=graph.win_size,
                                         iterations=len(graph.iteration_trace)-1)
 
 
@@ -110,12 +113,6 @@ class FgoEstimator(Estimator):
                     with timing.measure("marginalize_ms", i):
                         graph.mar_measurements(i)
                         covariances[i-1] = graph.last_measurement_marginalization["covariance"]
-            else:
-                # Standard SW-FGO: Schur complement 
-                # Retire only on overflow. W >= N retains the complete graph.
-                if graph.win_size > cfg.window_size:
-                    with timing.measure("marginalize_ms", i):
-                        graph.marginalize(i - cfg.window_size)
 
             suspended = perf_counter()
             yield dict(epoch=i-1, state=online[:, i-1].copy(),

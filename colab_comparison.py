@@ -27,6 +27,8 @@ def _configured_method(kind, settings, base):
     kernel = settings.get('kernel', 'none')
     if iterations < 1 or window < 1:
         raise ValueError('Iterations and window size must be positive')
+    if name == 'SW-FGO' and window < 2:
+        raise ValueError('SW-FGO requires window >= 2 (jointly optimized states)')
     if not np.isfinite(delta) or delta <= 0:
         raise ValueError('Robust scale must be finite and positive')
     if kernel not in ('none', 'huber', 'cauchy', 'tukey'):

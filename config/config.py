@@ -141,7 +141,7 @@ def load_config(path: str | Path) -> Config:
         robust_kernel=f.get("robust_kernel", "none"),
         robust_delta=f.get("robust_delta", 2.0),
         robust_continuation=f.get("robust_continuation", False),
-        window_size=f.get("window_size", 1),
+        window_size=f.get("window_size", 1 if f.get("imitate_KFV", False) else 2),
         imitate_kfv=f.get("imitate_KFV", False),
         autodiff=f.get("autoDiff", False),
     )
@@ -168,7 +168,7 @@ def sw_fgo_config() -> Config:
             autodiff=False,
             max_iteration=1,
             robust_kernel="none",
-            window_size=1,
+            window_size=2,
         )
     )
 
@@ -232,6 +232,17 @@ def real_config() -> Config:
         imu={"gravity_norm": 9.81},
     )
     return convert_kfv_to_fgo(cfg)
+
+
+def validate_fgo_window(cfg):
+    """w counts epoch states jointly optimized, including the current state."""
+    recursive = getattr(cfg, 'imitate_kfv', False) or getattr(cfg, 'imitate_KFV', False)
+    if recursive:
+        if cfg.window_size != 1:
+            raise ValueError('Re-FGO requires window_size=1')
+    elif not isinstance(cfg.window_size, (int, np.integer)) or cfg.window_size < 2:
+        raise ValueError('SW-FGO requires integer window_size >= 2 (jointly optimized states)')
+    return recursive
 
 
 def validate_config(config, initial, cfg):

@@ -154,7 +154,7 @@ class MethodCard:
         self.kernel = W.Dropdown(options=['none','huber','cauchy','tukey'], value='huber')
         self.delta = _log(1., -2, 2)
         self._kernel_scales = {'none':1., 'huber':1., 'cauchy':2.385, 'tukey':4.685}
-        self.window = _slider(5, 1, 50, integer=True)
+        self.window = _slider(5, 2, 50, integer=True)
         self.numerical = W.Checkbox(value=False, description='Numerical Jacobian', indent=False)
         self.continuation = W.Checkbox(value=True, description='Gradual scale', indent=False)
         self.continuation_row = _row('↘','Robust initialization','Starts broad, then decreases to the target over multiple updates. One-update rEKF uses the broad scale.',self.continuation)
@@ -164,7 +164,7 @@ class MethodCard:
         self.iteration_row = _row('↻','Iterations','Maximum updates per epoch',self.iterations)
         self.kernel_row = _row('◇','Robust kernel','Reduce the influence of large whitened residuals',self.kernel)
         self.delta_row = _row('δ','Robust scale','Dimensionless scale, not a threshold in metres',self.delta)
-        self.window_row = _row('▤','Window','States retained after a sliding-window solve',self.window)
+        self.window_row = _row('▤','Window w','States jointly optimized, including the current epoch. Minimum 2.',self.window)
         self.numerical_row = _row('∂','Derivative','Simulation only. Off uses the analytic Jacobian',self.numerical)
         rows = [_heading('A' if side == 'left' else 'B', f'{side.title()} method',
                          'Controls follow the selected estimator.'),
@@ -204,8 +204,10 @@ class MethodCard:
             self.kernel.disabled = ordinary
             self.delta.disabled = ordinary or self.kernel.value == 'none'
             self.continuation_row.layout.display = '' if self.kernel.value in ('cauchy','tukey') else 'none'
-            self.window.value = 1 if recursive else self._saved_window
+            self.window.min = 1 if recursive else 2
+            self.window.value = 1 if recursive else max(2, self._saved_window)
             self.window.disabled = recursive
+            self.window_row.layout.display = 'none' if recursive else ''
             self.numerical_row.layout.display = '' if source == 'Simulation' else 'none'
             text = ('EKF uses one update and no robust kernel.' if self.method.value == 'EKF' else
                     'IEKF enables repeated updates without robust weighting.' if self.method.value == 'iEKF' else
